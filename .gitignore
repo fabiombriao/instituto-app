@@ -1,4 +1,13 @@
-node_modules
-.env
-.next
-dist
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+tmp/cache/
+src/pages/AdminDashboard.notes.patch
+src/pages/AdminDashboard.tsx.backup
+src/pages/AdminDashboard.tsx.temp
+src/lib/pdfExport.examples.ts

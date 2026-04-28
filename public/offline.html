@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <title>Sem conexão | Instituto Caminhos do Êxito</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0a0a;
+        --panel: rgba(16, 16, 16, 0.92);
+        --text: #f5f5f5;
+        --muted: #8f8f8f;
+        --accent: #00e676;
+        --accent-2: #ffd000;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+        margin: 0;
+      }
+
+      body {
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(0, 230, 118, 0.16), transparent 32%),
+          radial-gradient(circle at bottom right, rgba(255, 208, 0, 0.12), transparent 28%),
+          var(--bg);
+        color: var(--text);
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: min(560px, 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(20, 20, 20, 0.98), var(--panel));
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+        padding: 32px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 28px;
+      }
+
+      .mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #00e676, #ffd000);
+        position: relative;
+        flex: 0 0 auto;
+        box-shadow: 0 0 40px rgba(0, 230, 118, 0.22);
+      }
+
+      .mark::after {
+        content: '';
+        position: absolute;
+        inset: 12px;
+        border-radius: 12px;
+        background: #0a0a0a;
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.22em;
+        font-size: 0.72rem;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3.25rem);
+        line-height: 0.96;
+        letter-spacing: -0.05em;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .actions {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 28px;
+      }
+
+      a,
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 16px;
+        padding: 14px 18px;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #08100b;
+      }
+
+      .secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 22px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #ff6b6b;
+        box-shadow: 0 0 12px rgba(255, 107, 107, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card" role="main" aria-labelledby="title">
+      <div class="brand" aria-hidden="true">
+        <div class="mark"></div>
+        <div>
+          <p class="eyebrow">Instituto Caminhos do Êxito</p>
+          <h1 id="title">Você está sem conexão</h1>
+        </div>
+      </div>
+      <p>
+        A plataforma não conseguiu carregar a interface online agora. Quando a
+        rede voltar, recarregue a página para retomar o acesso ao app.
+      </p>
+      <div class="actions">
+        <a class="primary" href="/">Tentar novamente</a>
+        <button class="secondary" type="button" onclick="window.location.reload()">
+          Recarregar
+        </button>
+      </div>
+      <div class="status">
+        <span class="dot"></span>
+        <span>Modo offline ativo</span>
+      </div>
+    </main>
+  </body>
+</html>

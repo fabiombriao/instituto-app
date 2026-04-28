@@ -1,36 +1,21 @@
-# 12 Week Year Method
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Aplicativo web mobile-first para transformar metas anuais em ciclos intensos de 12 semanas. O protótipo entregue neste repositório usa Next.js (App Router) + Tailwind CSS + Recharts e inclui fluxos essenciais do método.
+# Run and deploy your AI Studio app
 
-## 🧱 Estrutura do projeto
-- `app/` – Páginas com App Router (Semana atual, Onboarding, WAM, Ciclo, Relatórios, Templates).
-- `components/` – Componentes reutilizáveis (UI, dashboard, onboarding, relatórios, templates, navegação).
-- `lib/` – Tipagens e dados mockados.
-- `docs/` – Manual de rituais para conduzir o WAM e calcular score.
+This contains everything you need to run your app locally.
 
-## 🚀 Como rodar
-```bash
-npm install
-npm run dev
-```
-O app ficará disponível em `http://localhost:3000`.
+View your app in AI Studio: https://ai.studio/apps/992d5f50-38d1-4783-be28-83f1b6aeaee4
 
-## 📲 Fluxos contemplados (MVP)
-- **Onboarding guiado (20 min)**: visão, objetivos, métricas e táticas.
-- **Semana atual**: progresso do ciclo, prioridades, objetivos e táticas com score.
-- **WAM**: roteiro passo a passo com retrospectiva, grandes prioridades e ata.
-- **Relatórios**: gráfico de evolução do score e cartões de insights.
-- **Templates**: kits prontos para Vendas, Conteúdo, Operações, Saúde e Finanças.
+## Run Locally
 
-## 🔌 Integrações previstas
-- Google Calendar para blocos de WAM/foco.
-- Supabase para Auth/Postgres/RLS/Storage.
-- Webhooks via n8n (`week.start`, `week.end`, `score.updated`).
+**Prerequisites:**  Node.js
 
-## 🛣️ Próximas evoluções sugeridas
-1. Times & permissões (Owner, Líder, Membro, Coach) e score compartilhado.
-2. AI Coach para gerar plano inicial e sugerir ajustes semanais.
-3. Gamificação (streaks, badges, ranking privado) + PWA offline-first.
 
-## 📄 Recursos adicionais
-- [Manual de Rituais](docs/rituais.md) com passo a passo de execução semanal e cálculo de score.
+1. Install dependencies:
+   `npm install`
+2. Keep the local Supabase dev values in [.env.dev](.env.dev). The Vite config reads that file and maps `SUPABASE_PROJECT_URL` to `VITE_SUPABASE_URL` and `SUPABASE_ANON_PUBLIC_KEY` to `VITE_SUPABASE_ANON_KEY`.
+3. Set the `GEMINI_API_KEY` in [.env.local](.env.local) or [.env.dev](.env.dev) if you want Gemini features enabled locally.
+4. Run the app:
+   `npm run dev`
