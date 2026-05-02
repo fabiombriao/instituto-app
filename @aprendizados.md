@@ -395,3 +395,29 @@
 **Implementador**: Claude Code (Opus 4.7 / 1M)
 **Versao**: M11 - Gaps Transversais (LGPD, Auditoria, Offline, Push, Backup, Performance)
 **Status**: App pronto, migration + edge functions + secrets pendentes de setup manual.
+
+---
+
+# Aprendizados Bateria Final Smoke - 2026-05-02
+
+## Bugs reais encontrados no banco de dev e corrigidos
+
+1. **Trigger `trigger_unlock_badges_on_task_checkin()` quebrado**: referenciava `NEW.aluno_id` mas a tabela `task_checkins` nao tem essa coluna. Causava erro em qualquer INSERT de check-in de tarefa. Corrigido derivando via JOIN tasks -> tactics -> goals -> cycles.aluno_id.
+
+2. **`check_and_unlock_badges()` usava `tc.aluno_id`** que nao existe + colisao de nome do parametro `user_id` com coluna de `user_badges`, gerando "column reference user_id is ambiguous". Corrigido renomeando o parametro para `p_user_id` e usando JOINs corretos.
+
+3. **`get_trainer_low_score_alerts()` e `get_graduated_students()` e `check_and_create_low_score_alerts()`** todos referenciavam `ws.week_ending` / `weekly_scores.week_ending` que nao existe; a coluna real e `week_end_date`. Corrigido em todas tres.
+
+4. **Policies de RLS super-permissivas em `coach_notes`**: existiam `coach_notes readable by authenticated USING true` e `coach_notes_visibility_policy` que liberava o aluno (`aluno_id = auth.uid()`) - violando o requisito de privacidade do treinador. Removidas.
+
+5. **Colunas M7 ausentes em producao**: `profiles.monitor_limit`, `profiles.disabled_at`, `programs.archived_at` faltavam apesar de o codigo as referenciar. Adicionadas.
+
+## Licoes operacionais
+
+- O contexto disse que M7 estava aplicado mas nao estava. Sempre validar com smoke real antes de declarar fechado.
+- Funcoes plpgsql que retornam TABLE precisam de aliases unicos quando a coluna do retorno tem o mesmo nome do parametro IN, ou ocorre "ambiguous reference" sutil.
+- Ao testar RLS, leakage costuma vir de policies "permissive: true" antigas que sobrepoem politicas restritivas; e preciso droppar as antigas.
+- Smokes individuais isolam bem cada modulo, mas o helper `cleanupSmoke('smoke_')` e crucial para nao deixar lixo entre runs e nao colidir com o user real.
+- Trigger `validate_goal_limit` ja bloqueia o 4o objetivo no DB - o smoke do plano12wy estava reportando "front-side only" por engano; corrigido.
+
+**Resultado da bateria**: 8 scripts, 120/120 PASS. lint OK, build OK.

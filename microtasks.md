@@ -197,10 +197,11 @@ Implementacao M11:
 - (x) Restaurar o localhost em `http://127.0.0.1:3000` depois da implementacao.
 - (x) Executar smoke test de login, signup, recovery de senha e onboarding com o Supabase de dev carregado via `.env.dev`.
 - Nota: houve rate limit de e-mail enquanto a confirmacao ainda estava ativa no projeto, mas a validacao funcional de Auth fechou depois que a confirmacao foi desativada no painel.
-- ( ) Executar smoke test do Plano 12WY com ciclo ativo, objetivo, tatica, tarefa e check-in persistindo no banco.
-- ( ) Executar smoke test de Habitos e ROI com leitura e escrita reais no Supabase de dev.
-- ( ) Validar dashboards de aluno, treinador, super admin e graduado com os papeis corretos.
-- ( ) Smoke test de M8 com usuario real role ALUNO_GRADUADO, alunos atribuidos, alertas disparados, limite de monitor respeitado, ver dashboard do aluno, mensagens/notas funcionando.
-- ( ) Validar badges, ranking e notificacoes com dados reais do ambiente de dev.
-- ( ) Conferir RLS, visibilidade por papel e integridade das tabelas depois de cada fluxo.
-- ( ) Somente depois disso marcar a entrega como pronta.
+- (x) Executar smoke test do Plano 12WY com ciclo ativo, objetivo, tatica, tarefa e check-in persistindo no banco. (`scripts/smoke-plan12wy.mjs` 14/14 PASS)
+- (x) Executar smoke test de Habitos e ROI com leitura e escrita reais no Supabase de dev. (`scripts/smoke-habits-roi.mjs` 20/20 PASS)
+- (x) Validar dashboards de aluno, treinador, super admin e graduado com os papeis corretos. (`scripts/smoke-dashboards.mjs` 13/13 PASS)
+- (x) Smoke test de M8 com usuario real role ALUNO_GRADUADO, alunos atribuidos, alertas disparados, limite de monitor respeitado, ver dashboard do aluno, mensagens/notas funcionando. (`scripts/smoke-m8-graduated.mjs` 16/16 PASS)
+- (x) Validar badges, ranking e notificacoes com dados reais do ambiente de dev. (`scripts/smoke-gamification-notifications.mjs` 10/10 PASS)
+- (x) Conferir RLS, visibilidade por papel e integridade das tabelas depois de cada fluxo. (`scripts/smoke-rls-integrity.mjs` 13/13 PASS)
+- (x) Smokes pre-existentes ainda passam: `scripts/smoke-offline-queue.mjs` 10/10, `scripts/smoke-m11-sql.mjs` 24/24.
+- (x) Bateria final: 120/120 PASS, `npm run lint` OK, `npm run build` OK.

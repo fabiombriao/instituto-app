@@ -4,6 +4,29 @@
 - Stack: React + Vite + Supabase.
 - Dev ligado ao Supabase de `.env.dev`.
 
+## Validacao Final Smoke (2026-05-02)
+
+Bateria de 8 scripts smoke contra Supabase de dev real (`cqspjsyiycoksvsorpzh`), todos PASS:
+- `scripts/smoke-plan12wy.mjs` 14/14 - Plano 12WY (ciclo, objetivos, taticas, tarefas, check-ins, weekly_score, archive_cycle, limite de 3 objetivos enforced no DB).
+- `scripts/smoke-habits-roi.mjs` 20/20 - Habits (build/abandon/specific_days, pausa, streak, 5 dias consecutivos) + ROI (baseline com cycle_id, 3 results, progresso 80%, RLS aluno/admin).
+- `scripts/smoke-dashboards.mjs` 13/13 - Queries por papel (ALUNO, TREINADOR, SUPER_ADMIN, ALUNO_GRADUADO) com RLS e RPCs `get_trainer_low_score_alerts`, `get_graduated_students`.
+- `scripts/smoke-m8-graduated.mjs` 16/16 - Aluno graduado (limite monitor 2, alerts low_score, mensagens bidirecionais com RLS, coach_notes privadas do treinador).
+- `scripts/smoke-gamification-notifications.mjs` 10/10 - check_and_unlock_badges desbloqueia 'Iniciante' e 'Streak Infernal', log_notification, send_message, RLS notification_preferences.
+- `scripts/smoke-rls-integrity.mjs` 13/13 - RLS de profiles, roi_baselines, roi_results, coach_notes, messages, audit_log, consent_log, roi_access_log, notification_log, notification_preferences.
+- `scripts/smoke-offline-queue.mjs` 10/10 (pre-existente).
+- `scripts/smoke-m11-sql.mjs` 24/24 (pre-existente).
+
+Total: 120/120 PASS. `npm run lint` e `npm run build` validados.
+
+Correcoes aplicadas no banco durante a bateria:
+- `trigger_unlock_badges_on_task_checkin()`: trigger usava `NEW.aluno_id` que nao existe na tabela; agora deriva via JOIN tasks->tactics->goals->cycles.
+- `check_and_unlock_badges()`: usava `tc.aluno_id` (nao existe) e tinha colisao do parametro `user_id` com a coluna; renomeado para `p_user_id` e JOIN correto.
+- `get_trainer_low_score_alerts()`: usava `ws.week_ending` que nao existe; corrigido para `ws.week_end_date`.
+- `get_graduated_students()`: mesmo bug `week_ending`; reescrito.
+- `check_and_create_low_score_alerts()`: mesmo bug `week_ending`; reescrito com aliases unicos.
+- `coach_notes`: dropadas policies super-permissivas (`coach_notes readable by authenticated USING true` e `coach_notes_visibility_policy` que dava SELECT ao aluno) - notas ficam privadas do staff.
+- Adicionadas colunas faltantes: `profiles.monitor_limit`, `profiles.disabled_at`, `programs.archived_at` (M7).
+
 ## Estado Atual
 
 - M1 concluido no app e no banco de dev.
