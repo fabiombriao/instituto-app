@@ -11,3 +11,9 @@ src/pages/AdminDashboard.notes.patch
 src/pages/AdminDashboard.tsx.backup
 src/pages/AdminDashboard.tsx.temp
 src/lib/pdfExport.examples.ts
+_naocomitar/
+
+# Documentação local (não commitar)
+CLAUDE.md
+context.md
+microtasks.md
