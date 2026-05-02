@@ -17,13 +17,14 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { isHabitDueOnDate, useEnrollments, useGamification, useHabits, usePlan12WY, useROI } from '../hooks/useData';
 import { canViewFinancialROI } from '../lib/roiAccess';
 import { cn } from '../lib/utils';
 import { getBadgeIcon } from '../lib/badgeIcons';
 import { generateStudentPDF } from '../lib/pdfExport';
+import BadgeUnlockCelebration from '../components/BadgeUnlockCelebration';
 
 function formatMoney(value: number) {
   return value.toLocaleString('pt-BR', {
@@ -49,11 +50,43 @@ export default function Dashboard() {
   const { results, baseline, baselines, loading: roiLoading } = useROI();
   const { goals, activeCycle, loading: planLoading, summary, weeklyScores, weeklyTaskGroups, toggleTaskCheckin } = usePlan12WY();
   const { enrollments, loading: enrollmentsLoading } = useEnrollments();
-  const { badges, availableBadges, loading: gamificationLoading } = useGamification();
+  const { badges, availableBadges, loading: gamificationLoading, newlyUnlocked, clearNewlyUnlocked, checkAndUnlockBadges } = useGamification();
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfMessage, setPdfMessage] = useState<string | null>(null);
+  const [celebrationBadge, setCelebrationBadge] = useState<any>(null);
+  const lastFetchedBadgeIds = useRef<Set<string>>(new Set());
+
+  // RF56: Rastrear badges recém-desbloqueadas para celebração
+  useEffect(() => {
+    if (badges.length === 0) return;
+
+    const currentBadgeIds = new Set(badges.map((b: any) => b.id));
+    const newBadges = badges.filter((b: any) => !lastFetchedBadgeIds.current.has(b.id));
+
+    if (newBadges.length > 0) {
+      // Mostrar celebração para a primeira badge nova
+      const newestBadge = newBadges.reduce((newest: any, current: any) =>
+        new Date(current.unlocked_at) > new Date(newest.unlocked_at) ? current : newest
+      );
+
+      const badgeInfo = availableBadges.find((b: any) => b.id === newestBadge.badge_id);
+      if (badgeInfo) {
+        setCelebrationBadge(badgeInfo);
+        console.log('New badge unlocked:', badgeInfo.name);
+      }
+    }
+
+    lastFetchedBadgeIds.current = currentBadgeIds;
+  }, [badges, availableBadges]);
+
+  // Auto-check badges quando há ações (check-in, etc)
+  useEffect(() => {
+    if (newlyUnlocked.length > 0) {
+      checkAndUnlockBadges();
+    }
+  }, [newlyUnlocked]);
 
   const todayKey = format(new Date(), 'yyyy-MM-dd');
   const displayName = profile?.full_name?.split(' ')[0] || 'Aluno';
@@ -128,6 +161,8 @@ export default function Dashboard() {
       }
 
       setActionMessage(`Check-in feito em ${task.title}.`);
+      // RF54: Verificar desbloqueio de badges após ação
+      await checkAndUnlockBadges();
     } finally {
       setActionLoadingId(null);
     }
@@ -148,6 +183,8 @@ export default function Dashboard() {
       }
 
       setActionMessage(`Check-in feito em ${habit.name}.`);
+      // RF54: Verificar desbloqueio de badges após ação
+      await checkAndUnlockBadges();
     } finally {
       setActionLoadingId(null);
     }
@@ -188,6 +225,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-10 pb-12 font-sans text-white">
+      {/* RF56: Badge Unlock Celebration */}
+      <BadgeUnlockCelebration
+        badge={celebrationBadge}
+        onClose={() => {
+          setCelebrationBadge(null);
+          clearNewlyUnlocked();
+        }}
+      />
+
       <header className="relative overflow-hidden rounded-[44px] border border-[#1a1a1a] bg-[#050505] p-8 md:p-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(102,255,102,0.16),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.05),transparent_32%)]" />
         <div className="relative z-10 grid gap-8 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">

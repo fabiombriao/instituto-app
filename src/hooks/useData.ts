@@ -1706,6 +1706,7 @@ export function useGamification() {
   const [badges, setBadges] = useState<any[]>([]);
   const [availableBadges, setAvailableBadges] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [newlyUnlocked, setNewlyUnlocked] = useState<any[]>([]);
 
   const fetchBadges = async () => {
     if (!user) {
@@ -1742,12 +1743,103 @@ export function useGamification() {
     const { error } = await supabase
       .from('user_badges')
       .insert({ user_id: user.id, badge_id: badge.id });
-    
+
     if (!error) fetchBadges();
     return error;
   };
 
-  return { badges, availableBadges, loading, unlockBadge };
+  // RF54: Automatizar desbloqueio de badges por regra (server-side via trigger)
+  const checkAndUnlockBadges = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .rpc('check_and_unlock_badges', { user_id: user.id });
+
+      if (error) {
+        console.error('Error checking badges:', error);
+        return;
+      }
+
+      if (data && data[0]?.newly_unlocked_ids?.length > 0) {
+        console.log('New badges unlocked:', data[0].newly_unlocked_ids);
+        setNewlyUnlocked(data[0].newly_unlocked_ids);
+        // Refetch badges to update UI
+        await fetchBadges();
+      }
+    } catch (err) {
+      console.error('checkAndUnlockBadges error:', err);
+    }
+  };
+
+  const clearNewlyUnlocked = () => {
+    setNewlyUnlocked([]);
+  };
+
+  return {
+    badges,
+    availableBadges,
+    loading,
+    unlockBadge,
+    checkAndUnlockBadges,
+    newlyUnlocked,
+    clearNewlyUnlocked,
+    refetchBadges: fetchBadges,
+  };
+}
+
+// RF55: Feed de conquistas da turma sem expor dados financeiros
+export function useTeamAchievements() {
+  const { user } = useAuth();
+  const [achievements, setAchievements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAchievements = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+
+    try {
+      console.log('useTeamAchievements: Fetching for', user.id);
+      const { data, error } = await supabase
+        .rpc('get_team_achievements', {
+          user_id: user.id,
+          limit_count: 20,
+        });
+
+      if (error) {
+        console.error('Error fetching team achievements:', error);
+        throw error;
+      }
+
+      if (data) {
+        setAchievements(data);
+      }
+    } catch (err) {
+      console.error('useTeamAchievements error:', err);
+      setAchievements([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchAchievements();
+  }, [user]);
+
+  // Refresh achievements periodically (every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchAchievements();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  return { achievements, loading, refetch: fetchAchievements };
 }
 
 export function useEnrollments() {
