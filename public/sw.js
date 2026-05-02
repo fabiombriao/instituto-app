@@ -1,6 +1,7 @@
-const CACHE_VERSION = 'ce-pwa-v1';
+const CACHE_VERSION = 'ce-pwa-v2';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+const API_CACHE = `${CACHE_VERSION}-api`;
 const DEFAULT_NOTIFICATION_URL = '/habitos';
 const PRECACHE_URLS = [
   '/',
@@ -9,6 +10,17 @@ const PRECACHE_URLS = [
   '/manifest.webmanifest',
   '/pwa-icon.svg',
 ];
+
+// Caminhos GET que respondem stale-while-revalidate (read-only).
+// Apenas leitura: nunca cachear POST/PATCH/DELETE.
+const API_CACHE_PATTERNS = [
+  /\/rest\/v1\/(habits|habit_checkins|tasks|task_checkins|cycles|goals|tactics|weekly_scores|badges|user_badges|notification_log|notification_preferences|messages|profiles|enrollments|turmas|programs)/,
+  /\/rest\/v1\/rpc\/(get_team_achievements|get_unread_messages_count|get_roi_access_count_for_user)/,
+];
+
+function isApiCacheable(url) {
+  return API_CACHE_PATTERNS.some((pattern) => pattern.test(url.pathname));
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -22,7 +34,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys.map((key) => {
-          if (key !== STATIC_CACHE && key !== RUNTIME_CACHE) {
+          if (key !== STATIC_CACHE && key !== RUNTIME_CACHE && key !== API_CACHE) {
             return caches.delete(key);
           }
           return Promise.resolve();
@@ -41,6 +53,26 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(request.url);
+
+  // M11 - Stale-while-revalidate para chamadas read-only ao Supabase REST
+  if (url.origin !== self.location.origin && isApiCacheable(url)) {
+    event.respondWith(
+      caches.open(API_CACHE).then((cache) => {
+        return cache.match(request).then((cachedResponse) => {
+          const fetchPromise = fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.ok) {
+                cache.put(request, networkResponse.clone());
+              }
+              return networkResponse;
+            })
+            .catch(() => cachedResponse);
+          return cachedResponse || fetchPromise;
+        });
+      }),
+    );
+    return;
+  }
 
   if (url.origin !== self.location.origin) {
     return;

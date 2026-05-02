@@ -224,6 +224,16 @@ export default function TrainerDashboard() {
     setModalLoading(true);
     setSelectedStudent(null);
     try {
+      // M11 - Log de acesso ao ROI (LGPD)
+      try {
+        await supabase.rpc('log_roi_access', {
+          p_target_user_id: student.profile.id,
+          p_context: 'TrainerDashboard:student_modal',
+        });
+      } catch (logErr) {
+        console.warn('log_roi_access falhou (rpc pode nao existir ainda):', logErr);
+      }
+
       const [weeklyScoresRes, habitsRes, habitCheckinsRes, roiResultsRes, roiBaselineRes] = await Promise.all([
         supabase.from('weekly_scores').select('*').eq('aluno_id', student.profile.id).order('week_number', { ascending: true }),
         supabase.from('habits').select('*').eq('aluno_id', student.profile.id).eq('is_paused', false),

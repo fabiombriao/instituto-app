@@ -14,12 +14,16 @@ import {
   Menu,
   X,
   MessageSquare,
+  Shield,
+  ScrollText,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import NotificationCenter from '../NotificationCenter';
+import OfflineIndicator from '../OfflineIndicator';
 import { supabase } from '../../lib/supabase';
 import { showLocalNotification } from '../../lib/pushSubscription';
+import { startOfflineSync } from '../../lib/offlineQueue';
 
 function getReminderStorageKey(profileId: string) {
   return `habit-reminder:last-fired:${profileId}`;
@@ -38,6 +42,7 @@ function parseReminderTime(value: string | null | undefined) {
 
 const ADMIN_NAV_ITEMS = [
   { icon: LayoutDashboard, label: '00. ADMIN GERAL', path: '/admin', superAdminOnly: true },
+  { icon: ScrollText, label: '00. AUDIT LOG', path: '/audit-log', superAdminOnly: true },
   { icon: BarChart3, label: '01. DASHBOARD TREINADOR', path: '/trainer-dashboard', superAdminOnly: false },
   { icon: Users, label: '01. ALUNOS', path: '/graduated-dashboard', superAdminOnly: false, graduatedOnly: true },
   { icon: Settings, label: '02. TURMA SETUP', path: '/turma/setup', superAdminOnly: false },
@@ -51,12 +56,18 @@ const NAV_ITEMS = [
   { icon: Users, label: '05. TURMA', path: '/turma' },
   { icon: MessageSquare, label: '06. MENSAGENS', path: '/messages' },
   { icon: Bell, label: '07. NOTIFICAÇÕES', path: '/notifications' },
+  { icon: Shield, label: '08. PRIVACIDADE', path: '/privacy' },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const navigate = useNavigate();
+
+  // M11 - inicia o sincronizador da fila offline (idempotente).
+  React.useEffect(() => {
+    startOfflineSync();
+  }, []);
 
   React.useEffect(() => {
     if (!profile?.habit_reminder_enabled || !profile.habit_reminder_time) {
@@ -219,6 +230,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <span className="font-sans font-black tracking-tighter uppercase text-xs">Instituto CE</span>
         </div>
         <div className="flex items-center gap-2">
+          <OfflineIndicator />
           <NotificationCenter />
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -386,6 +398,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <main className="flex-1 min-w-0 p-8 md:p-12 overflow-auto bg-[#0a0a0a]">
         <div className="hidden md:flex items-center justify-end gap-3 mb-6 max-w-6xl mx-auto">
+          <OfflineIndicator />
           <NotificationCenter />
         </div>
         <div className="max-w-6xl mx-auto">

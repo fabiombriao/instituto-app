@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { differenceInCalendarDays, format } from 'date-fns';
 import { supabase } from '../lib/supabase';
 import { canViewFinancialROI } from '../lib/roiAccess';
+import { enqueue as enqueueOffline, isOnline } from '../lib/offlineQueue';
 import {
   ActiveCycleState,
   ArchivedCycle,
@@ -256,10 +257,36 @@ export function useHabits() {
       return new Error('Hábito pausado. Retome antes de registrar novos check-ins.');
     }
 
+    // M11 - Offline queue: se sem conexao, enfileira e atualiza UI otimisticamente.
+    if (!isOnline()) {
+      enqueueOffline('habit_checkin', { habit_id: habitId, date, status });
+      // Otimistico: insere localmente para refletir UI ate sincronizar
+      setHabits((current) =>
+        current.map((h) => {
+          if (h.id !== habitId) return h;
+          const filtered = h.checkins.filter((c) => c.date !== date);
+          return {
+            ...h,
+            checkins: [
+              ...filtered,
+              {
+                id: `offline-${date}-${habitId}`,
+                habit_id: habitId,
+                date,
+                status,
+                created_at: new Date().toISOString(),
+              } as HabitCheckin,
+            ].sort((a, b) => a.date.localeCompare(b.date)),
+          };
+        }),
+      );
+      return null;
+    }
+
     const { error } = await supabase
       .from('habit_checkins')
       .upsert({ habit_id: habitId, date, status }, { onConflict: 'habit_id,date' });
-    
+
     if (!error) fetchHabits();
     return error;
   };
@@ -1641,6 +1668,18 @@ export function usePlan12WY() {
       return error;
     }
 
+    // M11 - offline queue: enfileira em offline e atualiza UI em paralelo.
+    if (!isOnline()) {
+      enqueueOffline('task_checkin', {
+        task_id: taskId,
+        date,
+        status: currentStatus ? 'not_done' : 'done',
+      });
+      // Pequeno awake do plan: deixa o usuario ver feedback imediato no fluxo.
+      await fetchPlan();
+      return null;
+    }
+
     const { error } = await supabase
       .from('task_checkins')
       .upsert(
@@ -2297,6 +2336,17 @@ export function useMessages() {
 
   const markRead = async (messageId: string) => {
     if (!user) return;
+    if (!isOnline()) {
+      enqueueOffline('message_mark_read', { message_id: messageId });
+      // Otimistico: marca local
+      setMessages((current) =>
+        current.map((m) =>
+          m.id === messageId ? { ...m, read_at: new Date().toISOString() } : m,
+        ),
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+      return;
+    }
     try {
       const { error } = await supabase.rpc('mark_message_read', { p_message_id: messageId });
       if (error) {
@@ -2458,4 +2508,247 @@ export function useMessageRecipients() {
   }, [user, profile]);
 
   return { recipients, loading, refetch: fetchRecipients };
+}
+
+// =============================================
+// M11 - Gaps Transversais (LGPD/Auditoria)
+// =============================================
+
+import type {
+  AuditLogEntry,
+  ConsentRecord,
+  ConsentType,
+  RoiAccessSummary,
+} from '../types';
+
+export function useAuditLog(initialFilters?: {
+  action?: string | null;
+  resourceType?: string | null;
+  actorUserId?: string | null;
+  targetUserId?: string | null;
+  from?: string | null;
+  to?: string | null;
+  limit?: number;
+}) {
+  const { profile } = useAuth();
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    action: initialFilters?.action ?? null,
+    resourceType: initialFilters?.resourceType ?? null,
+    actorUserId: initialFilters?.actorUserId ?? null,
+    targetUserId: initialFilters?.targetUserId ?? null,
+    from: initialFilters?.from ?? null,
+    to: initialFilters?.to ?? null,
+    limit: initialFilters?.limit ?? 200,
+  });
+
+  const fetchLog = async () => {
+    if (!profile || profile.role !== 'SUPER_ADMIN') {
+      setEntries([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase.rpc('get_audit_log', {
+        p_action: filters.action,
+        p_resource_type: filters.resourceType,
+        p_actor_user_id: filters.actorUserId,
+        p_target_user_id: filters.targetUserId,
+        p_from: filters.from,
+        p_to: filters.to,
+        p_limit: filters.limit,
+      });
+      if (error) {
+        console.error('useAuditLog error:', error);
+        setEntries([]);
+        return;
+      }
+      setEntries((data ?? []) as AuditLogEntry[]);
+    } catch (err) {
+      console.error('useAuditLog catch:', err);
+      setEntries([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchLog();
+  }, [profile, filters]);
+
+  return { entries, loading, filters, setFilters, refetch: fetchLog };
+}
+
+export function useConsents() {
+  const { user } = useAuth();
+  const [consents, setConsents] = useState<ConsentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchConsents = async () => {
+    if (!user) {
+      setConsents([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase.rpc('get_user_consents');
+      if (error) {
+        console.error('useConsents error:', error);
+        setConsents([]);
+        return;
+      }
+      setConsents((data ?? []) as ConsentRecord[]);
+    } catch (err) {
+      console.error('useConsents catch:', err);
+      setConsents([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchConsents();
+  }, [user]);
+
+  const setConsent = async (type: ConsentType, granted: boolean) => {
+    if (!user) return new Error('Sem sessao');
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+    const { error } = await supabase.rpc('register_consent', {
+      p_consent_type: type,
+      p_granted: granted,
+      p_user_agent: userAgent,
+    });
+    if (error) {
+      console.error('setConsent error:', error);
+      return error;
+    }
+    await fetchConsents();
+    return null;
+  };
+
+  const isGranted = (type: ConsentType): boolean => {
+    return consents.some((c) => c.consent_type === type && c.is_granted);
+  };
+
+  return { consents, loading, setConsent, isGranted, refetch: fetchConsents };
+}
+
+export function useExportUserData() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const exportData = async (): Promise<{ data: any; error: Error | null }> => {
+    if (!user) return { data: null, error: new Error('Sem sessao') };
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc('export_user_data', {
+        p_user_id: user.id,
+      });
+      if (error) return { data: null, error: error as unknown as Error };
+      return { data, error: null };
+    } catch (err: any) {
+      return { data: null, error: err as Error };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const downloadJson = async (): Promise<Error | null> => {
+    const { data, error } = await exportData();
+    if (error || !data) return error ?? new Error('Sem dados');
+    if (typeof window === 'undefined') return null;
+    try {
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return null;
+    } catch (err: any) {
+      return err as Error;
+    }
+  };
+
+  return { loading, exportData, downloadJson };
+}
+
+export function useDeleteUserData() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const deleteAccount = async (): Promise<Error | null> => {
+    if (!user) return new Error('Sem sessao');
+    setLoading(true);
+    try {
+      const { error } = await supabase.rpc('delete_user_data', {
+        p_user_id: user.id,
+        p_confirm: 'CONFIRMO_APAGAR_MEUS_DADOS',
+      });
+      if (error) return error as unknown as Error;
+      return null;
+    } catch (err: any) {
+      return err as Error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { loading, deleteAccount };
+}
+
+export function useROIAccessSummary(periodDays = 30) {
+  const { user } = useAuth();
+  const [summary, setSummary] = useState<RoiAccessSummary>({
+    total_accesses: 0,
+    unique_accessors: 0,
+    last_accessed_at: null,
+  });
+  const [loading, setLoading] = useState(true);
+
+  const fetch = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase.rpc('get_roi_access_count_for_user', {
+        p_period_days: periodDays,
+      });
+      if (error) {
+        console.error('useROIAccessSummary error:', error);
+        return;
+      }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (row) {
+        setSummary({
+          total_accesses: Number(row.total_accesses ?? 0),
+          unique_accessors: Number(row.unique_accessors ?? 0),
+          last_accessed_at: row.last_accessed_at ?? null,
+        });
+      }
+    } catch (err) {
+      console.error('useROIAccessSummary catch:', err);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetch();
+  }, [user, periodDays]);
+
+  return { summary, loading, refetch: fetch };
 }

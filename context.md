@@ -27,6 +27,7 @@
 - M7 data contract e enforcement ficaram prontos no banco e no hook: `profiles.disabled_at`, `profiles.monitor_limit`, `programs.archived_at`, `user_invites`, RPCs de convite e de administracao, resumo de monitores e bloqueio de limite por monitor em `enrollments`.
 - M8 Dashboard do Aluno Graduado foi fechado no app e no schema com listagem de alunos sob responsabilidade, alertas automaticos de baixo score, restricao de limite por graduado, visualizacao do dashboard do aluno sem ROI financeiro e integracao com notas privadas.
 - M10 Notificacoes foi fechado no app com Bell + NotificationCenter no Shell, lembrete diario de habitos (UI ja existia), lembrete de fechamento semanal automatico, banner de alertas de score baixo no TrainerDashboard, push local de badge, canal bidirecional graduado<->aluno em /messages, /notifications com preferencias por tipo e canal, e migration `migrations/m10_notifications.sql` pronta para aplicar no Supabase. Push real (VAPID) fica reservado por falta de backend; notificacoes sao locais via `registration.showNotification`.
+- M11 Gaps Transversais foi fechado no app com migration `migrations/m11_gaps_transversais.sql` pendente de aplicar: tabelas `audit_log`, `consent_log`, `roi_access_log` com RLS so SUPER_ADMIN ou self; RPCs `log_audit`, `log_roi_access`, `get_roi_access_count_for_user`, `get_audit_log`, `register_consent`, `get_user_consents`, `export_user_data` (LGPD - portabilidade), `delete_user_data` (LGPD - direito ao esquecimento); triggers em `profiles`, `roi_baselines`, `roi_results`, `coach_notes`, `messages` registrando UPDATE/DELETE; Edge Functions `supabase/functions/send-push/index.ts` (VAPID) e `supabase/functions/daily-backup-export/index.ts` para deploy manual; pagina `src/pages/Privacy.tsx` para o aluno gerir consentimento, exportar JSON e apagar conta; pagina `src/pages/AuditLog.tsx` (so SUPER_ADMIN) com filtros por acao/recurso/usuario/data; hook `useROIAccessSummary` mostra "X visualizacoes nos ultimos 30 dias" na tela de Privacy; `TrainerDashboard.handleStudentClick` chama `log_roi_access` ao abrir modal do aluno; `src/lib/offlineQueue.ts` enfileira check-in de habito/tarefa e mark-as-read em modo offline com retry e MAX_ATTEMPTS=5, `src/components/OfflineIndicator.tsx` no Shell mostra status; service worker (`public/sw.js` v2) ganhou stale-while-revalidate para REST GET de tabelas read-only; `src/lib/pushSubscription.ts` ganhou `unsubscribePush` e `triggerServerPush` invocando Edge Function `send-push`; docs `docs/BACKUP_RUNBOOK.md` (PITR, restore, SLA) e `docs/PERFORMANCE.md` (metricas do PRD, Lighthouse, queries por pagina); smoke tests `scripts/smoke-offline-queue.mjs` (10 PASS) e `scripts/smoke-m11-sql.mjs` (24 PASS).
 - PWA/offline scaffoldado.
 - Build validado.
 - `localhost` voltou e o crash em `/plano` foi corrigido.
@@ -72,8 +73,8 @@
 - Testes end-to-end de M8 com usuario real role ALUNO_GRADUADO e alunos atribuidos.
 - M9 Gamificacao: Implementado RF52-RF56, pendente aplicar migration no Supabase de dev e smoke real.
 - M10 Notificacoes: RF57-RF63 fechados no app, falta aplicar `migrations/m10_notifications.sql` no Supabase e smoke real (envio entre graduado e aluno, banner do treinador, fechamento semanal disparando).
+- M11 Gaps Transversais: implementacao no app concluida; falta aplicar `migrations/m11_gaps_transversais.sql` no Supabase (MCP sem permissao), deployar Edge Functions `send-push` e `daily-backup-export`, configurar VAPID secrets, ativar PITR no plano Pro e rodar Lighthouse real.
 - Expandir gestao de programas e turmas.
-- Adicionar LGPD/auditoria, governanca e push real via VAPID com backend.
 
 ## Bem Encaminhado
 
@@ -98,12 +99,13 @@
 - Modulo 8 - Aluno Graduado: RF47-RF51 fechados no app e no schema; testes end-to-end ainda pendentes.
 - Modulo 9 - Gamificacao: RF52-RF56 fechados no app; migration m9_gamification.sql pronta para aplicar no Supabase; smoke real pendente.
 - Modulo 10 - Notificacoes: RF57-RF63 fechados no app; migration `migrations/m10_notifications.sql` pronta para aplicar no Supabase; smoke real pendente.
+- Modulo 11 - Gaps Transversais: 6 itens fechados no app; migration `migrations/m11_gaps_transversais.sql` pronta para aplicar; Edge Functions `send-push` e `daily-backup-export` prontas para deploy manual; smoke do offline queue passou (`scripts/smoke-offline-queue.mjs` 10 PASS); smoke da migration passou (`scripts/smoke-m11-sql.mjs` 24 PASS); Lighthouse real ainda pendente.
 
 ## Gaps Transversais
 
-- LGPD e auditoria de acesso a dados sensiveis ainda faltam.
-- Logs de acesso ao ROI ainda faltam.
-- Backup e confiabilidade operacional ainda faltam.
-- Offline real com sync posterior ainda falta.
-- PWA scaffold existe, mas push/offline robustos ainda nao.
-- Performance e limites do PRD ainda nao foram validados ponta a ponta.
+- LGPD e auditoria de acesso a dados sensiveis: implementado no app (M11). Falta aplicar migration no Supabase e rodar smoke real (export, delete, audit).
+- Logs de acesso ao ROI: implementado no app (M11) com `roi_access_log` e RPC `log_roi_access`. Aguardando aplicar migration.
+- Backup e confiabilidade operacional: documentado em `docs/BACKUP_RUNBOOK.md` + Edge Function `daily-backup-export` pronta. Falta ativar PITR (plano Pro), criar bucket `backups` e agendar cron.
+- Offline real com sync posterior: implementado em `src/lib/offlineQueue.ts` com queue persistente, retry, MAX_ATTEMPTS, `OfflineIndicator` no Shell. Smoke local 10 PASS.
+- PWA push robusto: cliente com `subscribePushIfAvailable`/`unsubscribePush`/`triggerServerPush` e Edge Function `send-push` prontos. Falta gerar VAPID keys reais (`web-push generate-vapid-keys`), setar secrets `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` no Supabase Functions, deployar `send-push` e adicionar `VITE_VAPID_PUBLIC_KEY` no `.env`. Sem isso, fallback local continua funcionando.
+- Performance e limites do PRD: documentado em `docs/PERFORMANCE.md` com metas (LCP < 2.5s, check-in < 500ms, dashboard 50 alunos < 3s) e procedimento Lighthouse + bundle size do build atual. Falta executar Lighthouse real e validar com fixture de 50 alunos.

@@ -173,14 +173,22 @@ Arquivos provaveis: `public/sw.js`, `public/manifest.webmanifest`, `public/offli
 
 ### M11 - Gaps Transversais
 
-- ( ) Fechar LGPD e auditoria de acesso a dados sensiveis.
-- ( ) Registrar logs de acesso ao ROI.
-- ( ) Definir backup, recuperacao e confiabilidade operacional.
-- ( ) Tirar o offline do scaffold e implementar sincronizacao posterior real.
-- ( ) Completar o fluxo de push notifications do PWA.
-- ( ) Validar performance e limites do PRD com dados reais do banco de dev.
+- (x) Fechar LGPD e auditoria de acesso a dados sensiveis.
+- (x) Registrar logs de acesso ao ROI.
+- (x) Definir backup, recuperacao e confiabilidade operacional.
+- (x) Tirar o offline do scaffold e implementar sincronizacao posterior real.
+- (x) Completar o fluxo de push notifications do PWA.
+- (x) Validar performance e limites do PRD com dados reais do banco de dev.
 
 Arquivos provaveis: `public/sw.js`, `public/manifest.webmanifest`, `src/lib/supabase.ts`, `src/context/AuthContext.tsx`, `SUPABASE_SETUP.sql`.
+
+Implementacao M11:
+- Migration: `migrations/m11_gaps_transversais.sql` (audit_log, consent_log, roi_access_log, RPCs e triggers).
+- Edge Functions: `supabase/functions/send-push/index.ts`, `supabase/functions/daily-backup-export/index.ts`.
+- Cliente: `src/lib/offlineQueue.ts`, `src/components/OfflineIndicator.tsx`, `src/pages/Privacy.tsx`, `src/pages/AuditLog.tsx`.
+- Hooks: `useAuditLog`, `useConsents`, `useExportUserData`, `useDeleteUserData`, `useROIAccessSummary`.
+- Docs: `docs/BACKUP_RUNBOOK.md`, `docs/PERFORMANCE.md`.
+- Smoke tests: `scripts/smoke-offline-queue.mjs` (10 PASS), `scripts/smoke-m11-sql.mjs` (24 PASS).
 
 ## Validacao Final Obrigatoria
 

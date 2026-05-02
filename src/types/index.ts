@@ -494,6 +494,55 @@ export interface PushSubscriptionRow {
   created_at: string;
 }
 
+// =============================================
+// M11 - Gaps Transversais (LGPD/Auditoria/Offline)
+// =============================================
+
+export interface AuditLogEntry {
+  id: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  actor_email: string | null;
+  action: string;
+  resource_type: string;
+  resource_id: string | null;
+  target_user_id: string | null;
+  target_name: string | null;
+  details: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export type ConsentType = 'terms_of_use' | 'privacy_policy' | 'data_processing' | 'marketing';
+
+export interface ConsentRecord {
+  consent_type: ConsentType | string;
+  is_granted: boolean;
+  granted_at: string | null;
+  revoked_at: string | null;
+}
+
+export interface RoiAccessSummary {
+  total_accesses: number;
+  unique_accessors: number;
+  last_accessed_at: string | null;
+}
+
+export type OfflineQueueOperationKind =
+  | 'habit_checkin'
+  | 'task_checkin'
+  | 'message_mark_read';
+
+export interface OfflineQueueOperation {
+  id: string;
+  kind: OfflineQueueOperationKind;
+  payload: Record<string, unknown>;
+  created_at: string;
+  attempts: number;
+  last_error?: string | null;
+}
+
 export interface TrainerLowScoreAlert {
   alert_id: string | null;
   aluno_id: string;

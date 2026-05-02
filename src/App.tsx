@@ -23,6 +23,8 @@ const ROI = lazy(() => import('./pages/ROI'));
 const Ranking = lazy(() => import('./pages/Ranking'));
 const NotificationSettings = lazy(() => import('./pages/NotificationSettings'));
 const Messages = lazy(() => import('./pages/Messages'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const AuditLog = lazy(() => import('./pages/AuditLog'));
 
 function AppRoutes() {
   const { user, profile, loading, signOut } = useAuth();
@@ -149,6 +151,15 @@ function AppRoutes() {
             element={
               profile?.role === 'ALUNO_GRADUADO' || profile?.role === 'ALUNO'
                 ? <Messages />
+                : <Navigate to="/" replace />
+            }
+          />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route
+            path="/audit-log"
+            element={
+              profile?.role === 'SUPER_ADMIN'
+                ? <AuditLog />
                 : <Navigate to="/" replace />
             }
           />

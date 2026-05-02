@@ -1,22 +1,27 @@
 /**
- * M10 - Push Subscription utilitario
- *
- * IMPORTANTE: Atualmente NAO temos backend para enviar Web Push real (VAPID).
- * Por isso, todas as notificacoes sao disparadas LOCALMENTE no cliente
- * via `registration.showNotification()` (mesmo padrao usado pelo lembrete
- * de habitos em `Shell.tsx`).
+ * M10 + M11 - Push Subscription utilitario
  *
  * Este modulo:
  *  - Pede permissao de notificacao quando necessario.
- *  - Faz `pushManager.subscribe()` opcional caso uma `VAPID_PUBLIC_KEY`
- *    seja injetada via `import.meta.env.VITE_VAPID_PUBLIC_KEY` no futuro.
- *  - Persiste a subscription em `push_subscriptions` (tabela ja preparada).
- *  - Expoe `showLocalNotification()` para uso em qualquer hook/pagina.
+ *  - Faz `pushManager.subscribe()` quando uma `VITE_VAPID_PUBLIC_KEY`
+ *    estiver disponivel.
+ *  - Persiste a subscription em `push_subscriptions` para envio server-side.
+ *  - Expoe `showLocalNotification()` (fallback local quando push backend
+ *    nao esta disponivel ou para dev).
+ *  - Expoe `triggerServerPush()` que chama a Edge Function `send-push`
+ *    do Supabase para envio real via VAPID.
+ *
+ * Modo HIBRIDO: se VAPID configurado, push real via Edge Function;
+ * caso contrario, fallback local via `registration.showNotification()`.
  */
 
 import { supabase } from './supabase';
 
 const VAPID_PUBLIC_KEY = (import.meta as any)?.env?.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+export function isPushBackendConfigured(): boolean {
+  return Boolean(VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY.length > 20);
+}
 
 export type LocalNotificationPayload = {
   title: string;
@@ -145,5 +150,62 @@ export async function subscribePushIfAvailable(userId: string) {
   } catch (err) {
     console.warn('subscribePushIfAvailable error', err);
     return null;
+  }
+}
+
+/**
+ * Remove subscription local e marca remocao no banco.
+ * Util ao desligar push nas Settings.
+ */
+export async function unsubscribePush(userId: string): Promise<boolean> {
+  if (!isPushManagerSupported()) return false;
+  try {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      await subscription.unsubscribe();
+      const sub = subscription.toJSON() as { endpoint?: string };
+      if (sub.endpoint) {
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('user_id', userId)
+          .eq('endpoint', sub.endpoint);
+      }
+    }
+    return true;
+  } catch (err) {
+    console.warn('unsubscribePush error', err);
+    return false;
+  }
+}
+
+/**
+ * Dispara um push real via Edge Function `send-push` (precisa estar deployada).
+ * Em dev sem Edge Function configurada, retorna false e o caller pode usar
+ * `showLocalNotification()` como fallback.
+ */
+export async function triggerServerPush(payload: {
+  user_ids: string[];
+  title: string;
+  body?: string;
+  url?: string;
+  data?: Record<string, unknown>;
+}): Promise<boolean> {
+  if (!isPushBackendConfigured()) {
+    return false;
+  }
+  try {
+    const { data, error } = await supabase.functions.invoke('send-push', {
+      body: payload,
+    });
+    if (error) {
+      console.warn('triggerServerPush invoke error', error);
+      return false;
+    }
+    return Boolean(data?.success);
+  } catch (err) {
+    console.warn('triggerServerPush error', err);
+    return false;
   }
 }

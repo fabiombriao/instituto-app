@@ -278,3 +278,120 @@
 **Implementador**: Claude Code (Opus 4.7 / 1M)
 **Versão**: M10 - Notifications (RF57-RF63)
 **Status**: App pronto, migration pendente de apply
+
+---
+
+# Aprendizados M11 - Gaps Transversais
+
+## Data: 2026-05-02
+
+### Decisoes Importantes
+
+1. **MCP Supabase continua sem permissao**: Repete o padrao M8/M9/M10 - retorna `permission denied` para `apply_migration`, `deploy_edge_function`, `list_tables` no projeto `cqspjsyiycoksvsorpzh`. Solucao: salvar tudo em `migrations/m11_gaps_transversais.sql` (idempotente: `CREATE OR REPLACE`, `IF NOT EXISTS`, `DROP IF EXISTS`) + Edge Functions em `supabase/functions/{send-push,daily-backup-export}/index.ts` para deploy manual via `supabase functions deploy`.
+
+2. **VAPID keys nao podem ser geradas no agente**: `web-push generate-vapid-keys` exige Node + lib `web-push` (nao disponivel no sandbox sem `npm install`). Decisao: deixar `pushSubscription.ts` HIBRIDO - se `VITE_VAPID_PUBLIC_KEY` estiver setado, faz subscribe real; caso contrario, fallback para `showLocalNotification`. Documentado em `@aprendizados.md` que producao precisa rodar:
+   ```bash
+   npx web-push generate-vapid-keys
+   # Setar no Supabase: Project Settings > Edge Functions > Secrets
+   #   VAPID_PUBLIC_KEY=<publica>
+   #   VAPID_PRIVATE_KEY=<privada>
+   #   VAPID_SUBJECT=mailto:contato@caminhosdoexito.app
+   # Adicionar no .env do app:
+   #   VITE_VAPID_PUBLIC_KEY=<publica>
+   ```
+
+3. **Triggers de auditoria swallow erros**: `audit_sensitive_change()` usa `EXCEPTION WHEN OTHERS THEN RETURN COALESCE(NEW, OLD)` para garantir que falha no log nunca quebre fluxo de negocio (ex: usuario nao consegue salvar profile porque audit_log esta cheio). Trade-off aceito porque o log e secundario.
+
+4. **Auditoria de SELECT via RPC explicita**: Postgres nao suporta trigger em SELECT. Para registrar quem viu o ROI de quem, usei RPC `log_roi_access(p_target_user_id, p_context)` chamada explicitamente em `TrainerDashboard.handleStudentClick` (e ja preparada para futuras telas). Padrao recomendado em vez de fingir trigger via view.
+
+5. **Offline queue em localStorage, nao IndexedDB**: Opção pelo localStorage (sincrono, simples, ~10MB) porque o volume esperado e baixissimo (usuario faz no maximo 5-10 check-ins por dia). Se eventualmente passar de 100 itens, migrar para `idb-keyval`. API encapsulada em `src/lib/offlineQueue.ts` para troca futura sem refator.
+
+6. **MAX_ATTEMPTS=5**: Para evitar fila travada com op invalida (ex: habit_id que foi deletado), drop apos 5 tentativas. Trade-off: perda de check-in mais antigo vs travar todos os check-ins futuros. Documentado no console.warn.
+
+7. **Stale-while-revalidate so para REST GET de leitura**: Lista whitelist de patterns em `public/sw.js` (`API_CACHE_PATTERNS`). Nunca cachear POST/PATCH/DELETE (mutacao). Nunca cachear `/auth/v1/`. Bumped `CACHE_VERSION` para `v2` para forcar limpeza.
+
+8. **export_user_data como single jsonb**: Em vez de varios endpoints, retorna um jsonb gigante com todas as tabelas. Cliente apenas faz blob download. Vantagem: 1 chamada, simples. Desvantagem: pode ficar grande para usuarios antigos. Se passar de 5MB, paginar por tabela.
+
+9. **delete_user_data soft-delete + anonimizacao**: NAO deleto profile (quebraria FK em audit_log historico, weekly_scores, etc). Apenas:
+   - `full_name = 'Usuario Removido'`
+   - `email = 'deleted-<uuid>@anonymized.local'`
+   - `disabled_at = now()`
+   - `avatar_url = NULL`
+   - DELETE em ROI, mensagens, coach_notes, push_subscriptions, notification_*
+   - `enrollments.status = 'inactive'`
+   Mantem agregados (turma, ciclos) para integridade. Audita exclusao.
+
+10. **Confirmacao dupla na delete**: RPC exige `p_confirm = 'CONFIRMO_APAGAR_MEUS_DADOS'` literal + UI exige usuario digitar `APAGAR`. Evita acidente.
+
+11. **Edge Function send-push usa esm.sh**: Imports `https://esm.sh/web-push@3.6.7` e `https://esm.sh/@supabase/supabase-js@2`. Padrao Deno do Supabase. Precisa de `verify_jwt: true` para garantir auth.
+
+12. **PITR e plano Pro**: Backup automatico diario do plano Free dura so 7 dias. PITR (recovery em qualquer ponto) precisa Pro + add-on (~USD 100/mes). Documentado em `docs/BACKUP_RUNBOOK.md` com SLA RTO/RPO realistas.
+
+### Erros Cometidos / Corrigidos
+
+1. **Tipos TS para `Database` generic ausente**: O cliente Supabase nao tem `Database` generic, entao `.upsert(...)` retorna `any`. Manter casts explicitos. Sem isso, lint falha em `RoiAccessSummary`. Corrigido importando `import type` apenas onde necessario e fazendo cast `(data ?? []) as ConsentRecord[]`.
+
+2. **createLoadingFinisher no useROIAccessSummary inicial**: Coloquei loading state nao usado e tive que ajustar para evitar warning de variavel nao usada. Mantive apenas o necessario.
+
+3. **Triggers em DELETE precisam usar OLD**: Inicialmente tentei `(NEW->>'id')::UUID` direto, mas em DELETE NEW e NULL. Corrigido com `COALESCE((NEW->>'id')::UUID, (OLD->>'id')::UUID)`.
+
+4. **fetch reservada em hook**: Tentei usar `const fetch = async ...` num hook React, conflito com global `fetch`. Renomeei para `fetchData` interno + retornei como `refetch`.
+
+### Arquivos Criados
+
+- `migrations/m11_gaps_transversais.sql`: 3 tabelas, 8 RPCs, 5 triggers, RLS, GRANTs.
+- `src/lib/offlineQueue.ts`: queue persistente + flushQueue + retry + listener.
+- `src/components/OfflineIndicator.tsx`: badge de status no Shell.
+- `src/pages/Privacy.tsx`: LGPD - consent, export, delete + ROI access summary.
+- `src/pages/AuditLog.tsx`: SUPER_ADMIN consulta audit_log com filtros.
+- `supabase/functions/send-push/index.ts`: Edge Function VAPID web-push.
+- `supabase/functions/daily-backup-export/index.ts`: Edge Function de dump JSON para Storage.
+- `docs/BACKUP_RUNBOOK.md`: PITR, restore, SLA, tabelas criticas.
+- `docs/PERFORMANCE.md`: metas do PRD, Lighthouse, bundle size, queries por pagina.
+- `scripts/smoke-offline-queue.mjs`: 10 testes (PASS) sem dependencia externa.
+- `scripts/smoke-m11-sql.mjs`: 24 testes de estrutura da migration (PASS).
+
+### Arquivos Modificados
+
+- `src/types/index.ts`: types M11 (`AuditLogEntry`, `ConsentRecord`, `ConsentType`, `RoiAccessSummary`, `OfflineQueueOperation`, `OfflineQueueOperationKind`).
+- `src/hooks/useData.ts`: hooks `useAuditLog`, `useConsents`, `useExportUserData`, `useDeleteUserData`, `useROIAccessSummary`. Integracao offline em `markHabitCheckin`, `toggleTask` e `markRead`.
+- `src/lib/pushSubscription.ts`: `unsubscribePush`, `triggerServerPush`, `isPushBackendConfigured`.
+- `src/components/layout/Shell.tsx`: monta `OfflineIndicator`, registra `startOfflineSync`, adiciona items "08. PRIVACIDADE" e "00. AUDIT LOG" no menu.
+- `src/App.tsx`: rotas `/privacy` e `/audit-log` (esta com guard SUPER_ADMIN).
+- `src/pages/TrainerDashboard.tsx`: chama `log_roi_access` ao abrir modal do aluno.
+- `public/sw.js`: bump v2, novo cache `API_CACHE` com stale-while-revalidate para REST GET de leitura.
+- `microtasks.md`: marcadas as 6 RFs do M11 como (x) com lista de implementacao.
+- `context.md`: estado atual + pendencias por modulo + gaps transversais com status real.
+
+### Validacao
+
+- `npm run lint` (`tsc --noEmit`): PASS.
+- `npm run build`: PASS (10.67s, sem warnings de chunk size acima do limite).
+- `node scripts/smoke-offline-queue.mjs`: 10/10 PASS.
+- `node scripts/smoke-m11-sql.mjs`: 24/24 PASS.
+- Dev server vite respondeu 200 nas rotas `/`, `/privacy`, `/audit-log`.
+
+### O que ficou pendente
+
+- Aplicar `migrations/m11_gaps_transversais.sql` via Supabase SQL Editor (MCP sem permissao).
+- Deployar Edge Functions:
+  ```bash
+  supabase functions deploy send-push
+  supabase functions deploy daily-backup-export --no-verify-jwt
+  # (no-verify-jwt para o cron poder chamar com service role)
+  ```
+- Gerar VAPID keys reais e setar secrets:
+  ```bash
+  npx web-push generate-vapid-keys
+  # Adicionar VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT como secrets.
+  # Adicionar VITE_VAPID_PUBLIC_KEY no .env.
+  ```
+- Criar bucket `backups` (privado) no Supabase Storage.
+- Agendar cron diario chamando `daily-backup-export` (ver `docs/BACKUP_RUNBOOK.md`).
+- Ativar PITR (plano Pro + add-on).
+- Rodar Lighthouse real e atualizar `docs/PERFORMANCE.md` com metricas reais.
+- Smoke real apos aplicar migration: testar export, delete (em conta de teste), audit log, log_roi_access do trainer.
+
+**Implementador**: Claude Code (Opus 4.7 / 1M)
+**Versao**: M11 - Gaps Transversais (LGPD, Auditoria, Offline, Push, Backup, Performance)
+**Status**: App pronto, migration + edge functions + secrets pendentes de setup manual.
