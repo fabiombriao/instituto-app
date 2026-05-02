@@ -59,6 +59,7 @@
 - `src/hooks/useData.ts` agora centraliza `isHabitDueOnDate`, `calculateHabitStreak`, heatmap e consistencia por habito.
 - `npm run build` passou; `npm run lint` ainda acusava um erro preexistente em `src/pages/Ranking.tsx` antes do fechamento recente; localhost voltou em `http://127.0.0.1:3000`.
 - M8 fechado no app e no schema com: campo `graduated_monitor_id` em `enrollments`, tabela `low_score_alerts` para rastreamento de alertas, RPC `get_graduated_students()` para listar alunos com metricas, RPC `check_and_create_low_score_alerts()` para automacao de alertas, trigger `validate_graduated_monitor_limit()` para respeitar limite de monitor, `GraduatedDashboard.tsx` com listagem, filtros, modal detalhes, refresh automatico de alertas a cada 5 min, navegacao para dashboard do aluno, rota `/graduated-dashboard` com guard de role `ALUNO_GRADUADO`, integracao com `coach_notes` via RLS.
+- M9 fechado no app e schema com: RF52 consolidacao de streaks (funcoes `calculateHabitStreak` e `getCurrentHabitStreak`), RF53 ranking real baseado em score semanal (85% habitos 7d + 24% badges + 15% ROI + 16% streak), RF54 desbloqueio automatico de badges via RPC `check_and_unlock_badges()` com 7 regras e triggers, RF55 feed de conquistas da turma via RPC `get_team_achievements()` sem ROI, RF56 celebracao modal com animacoes em `BadgeUnlockCelebration.tsx`, hooks expandidos `useGamification()` com `checkAndUnlockBadges()` e novo `useTeamAchievements()`, integracao em `Dashboard.tsx` com rastreio de novas badges e celebracao auto-close.
 
 ## Ainda Falta
 
@@ -67,7 +68,7 @@
 - M6 Dashboard do Treinador fechado no app.
 - M7 Dashboard do Super Admin fechado no app e no schema local; falta smoke real no Supabase de dev.
 - Testes end-to-end de M8 com usuario real role ALUNO_GRADUADO e alunos atribuidos.
-- Automatizar desbloqueio de badges por regra.
+- M9 Gamificacao: Implementado RF52-RF56, pendente aplicar migration no Supabase de dev e smoke real.
 - Expandir gestao de programas e turmas.
 - Adicionar notificacoes, LGPD/auditoria e governanca.
 
@@ -92,7 +93,7 @@
 - Modulo 6 - Dashboard do Treinador: RF33-RF40 fechados.
 - Modulo 7 - Dashboard do Super Admin: RF41-RF46 fechados no app e no schema local; smoke real no Supabase de dev ainda pendente.
 - Modulo 8 - Aluno Graduado: RF47-RF51 fechados no app e no schema; testes end-to-end ainda pendentes.
-- Modulo 9 - Gamificacao: RF52 parcial; RF54-RF56 pendentes; RF53 fechado.
+- Modulo 9 - Gamificacao: RF52-RF56 fechados no app; migration m9_gamification.sql pronta para aplicar no Supabase; smoke real pendente.
 - Modulo 10 - Notificacoes: RF57-RF63 pendentes.
 
 ## Gaps Transversais
