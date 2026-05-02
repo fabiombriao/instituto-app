@@ -35,6 +35,7 @@ function parseReminderTime(value: string | null | undefined) {
 const ADMIN_NAV_ITEMS = [
   { icon: LayoutDashboard, label: '00. ADMIN GERAL', path: '/admin', superAdminOnly: true },
   { icon: BarChart3, label: '01. DASHBOARD TREINADOR', path: '/trainer-dashboard', superAdminOnly: false },
+  { icon: Users, label: '01. ALUNOS', path: '/graduated-dashboard', superAdminOnly: false, graduatedOnly: true },
   { icon: Settings, label: '02. TURMA SETUP', path: '/turma/setup', superAdminOnly: false },
 ];
 
@@ -120,6 +121,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
   const isSuperAdmin = profile?.role === 'SUPER_ADMIN';
   const canAccessTrainerTools = profile?.role === 'SUPER_ADMIN' || profile?.role === 'TREINADOR';
+  const isGraduated = profile?.role === 'ALUNO_GRADUADO';
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col md:flex-row font-sans">
@@ -153,7 +155,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
 
           <nav className="flex flex-col gap-4">
-            {ADMIN_NAV_ITEMS.filter((item) => (item.superAdminOnly ? isSuperAdmin : canAccessTrainerTools)).map((item) => (
+            {ADMIN_NAV_ITEMS.filter((item) => {
+              if (item.graduatedOnly) return isGraduated;
+              if (item.superAdminOnly) return isSuperAdmin;
+              return canAccessTrainerTools;
+            }).map((item) => (
               <NavLink
                 key={item.path}
                 to={item.path}
@@ -242,7 +248,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <h2 className="font-black text-lg tracking-tighter uppercase">Instituto CE</h2>
               </div>
               <nav className="flex flex-col gap-6">
-                {ADMIN_NAV_ITEMS.filter((item) => (item.superAdminOnly ? isSuperAdmin : canAccessTrainerTools)).map((item) => (
+                {ADMIN_NAV_ITEMS.filter((item) => {
+                  if (item.graduatedOnly) return isGraduated;
+                  if (item.superAdminOnly) return isSuperAdmin;
+                  return canAccessTrainerTools;
+                }).map((item) => (
                   <NavLink
                     key={item.path}
                     to={item.path}

@@ -279,6 +279,7 @@ export interface Enrollment {
   aluno_id: string | null;
   turma_id: string | null;
   monitor_id: string | null;
+  graduated_monitor_id?: string | null;
   status: 'active' | 'inactive' | 'concluded' | string | null;
   created_at: string;
 }
@@ -377,6 +378,7 @@ export interface WeeklyScore {
   score: number;
   week_start?: string | null;
   week_end?: string | null;
+  week_ending?: string | null;
   completed_tasks?: number | null;
   expected_tasks?: number | null;
   is_final?: boolean | null;
@@ -388,6 +390,34 @@ export interface ArchivedCycle extends Cycle {
   goals: PlanGoal[];
   summary: PlanSummary;
   weeklyScores: WeeklyScore[];
+}
+
+export interface GraduatedStudent {
+  aluno_id: string;
+  aluno_name: string;
+  aluno_email: string;
+  enrollment_id: string;
+  turma_id: string | null;
+  turma_name: string | null;
+  latest_weekly_score: number;
+  latest_score_week: string | null;
+  weeks_below_60: number;
+  has_active_alert: boolean;
+  current_streak: number;
+}
+
+export interface LowScoreAlert {
+  id: string;
+  aluno_id: string;
+  graduated_monitor_id: string;
+  consecutive_low_weeks: number;
+  first_low_week_date: string;
+  last_low_week_date: string;
+  alert_status: 'active' | 'resolved' | 'dismissed';
+  resolved_at: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Database {

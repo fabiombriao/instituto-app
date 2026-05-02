@@ -16,6 +16,7 @@ const InviteAccept = lazy(() => import('./pages/InviteAccept'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TrainerDashboard = lazy(() => import('./pages/TrainerDashboard'));
+const GraduatedDashboard = lazy(() => import('./pages/GraduatedDashboard'));
 const Plan12WY = lazy(() => import('./pages/Plan12WY'));
 const Habits = lazy(() => import('./pages/Habits'));
 const ROI = lazy(() => import('./pages/ROI'));
@@ -122,6 +123,14 @@ function AppRoutes() {
             element={
               profile?.role === 'SUPER_ADMIN' || profile?.role === 'TREINADOR'
                 ? <TrainerDashboard />
+                : <Navigate to="/" replace />
+            }
+          />
+          <Route
+            path="/graduated-dashboard"
+            element={
+              profile?.role === 'ALUNO_GRADUADO'
+                ? <GraduatedDashboard />
                 : <Navigate to="/" replace />
             }
           />

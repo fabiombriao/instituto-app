@@ -129,11 +129,23 @@ Arquivos provaveis: `src/pages/AdminDashboard.tsx`, `src/context/AuthContext.tsx
 
 ### M8 - Aluno Graduado
 
-- ( ) RF47: listar os alunos sob responsabilidade do graduado com status de execucao da semana.
-- ( ) RF48: disparar alerta automatico quando um aluno atribuido ficar abaixo de 60% por 2 semanas.
-- ( ) RF49: criar canal de mensagens por aluno com historico visivel para treinador.
-- ( ) RF50: mostrar a visao do dashboard do aluno sem ROI financeiro.
-- ( ) RF51: respeitar o limite maximo de alunos por graduado configurado pelo treinador.
+- (x) RF47: listar os alunos sob responsabilidade do graduado com status de execucao da semana.
+- (x) RF48: disparar alerta automatico quando um aluno atribuido ficar abaixo de 60% por 2 semanas.
+- (x) RF49: criar canal de mensagens por aluno com historico visivel para treinador.
+- (x) RF50: mostrar a visao do dashboard do aluno sem ROI financeiro.
+- (x) RF51: respeitar o limite maximo de alunos por graduado configurado pelo treinador.
+
+Validado em dev:
+
+- `npm run build` e `npm run lint` passaram.
+- Migration M8 aplicada ao Supabase: tabela `low_score_alerts`, RPCs `get_graduated_students()` e `check_and_create_low_score_alerts()`, trigger `validate_graduated_monitor_limit()`, RLS para `coach_notes`.
+- `GraduatedDashboard.tsx` criado com listagem, filtros, modal, refresh automatico de alertas a cada 5 min, navegacao para dashboard do aluno.
+- Rota `/graduated-dashboard` protegida por role `ALUNO_GRADUADO`.
+- Tipos `GraduatedStudent` e `LowScoreAlert` em `types/index.ts`.
+- Hook `useGraduatedStudents()` em `hooks/useData.ts`.
+- Menu integrado em `Shell.tsx` com visibilidade condicional.
+
+Arquivos provaveis: `src/pages/GraduatedDashboard.tsx`, `migrations/m8_graduated_students.sql`, `src/types/index.ts`, `src/hooks/useData.ts`, `src/App.tsx`, `src/components/layout/Shell.tsx`.
 
 Arquivos provaveis: `src/pages/AdminDashboard.tsx`, `src/pages/Dashboard.tsx`, `src/types/index.ts`, `src/hooks/useData.ts`, `SUPABASE_SETUP.sql`.
 
@@ -180,6 +192,7 @@ Arquivos provaveis: `public/sw.js`, `public/manifest.webmanifest`, `src/lib/supa
 - ( ) Executar smoke test do Plano 12WY com ciclo ativo, objetivo, tatica, tarefa e check-in persistindo no banco.
 - ( ) Executar smoke test de Habitos e ROI com leitura e escrita reais no Supabase de dev.
 - ( ) Validar dashboards de aluno, treinador, super admin e graduado com os papeis corretos.
+- ( ) Smoke test de M8 com usuario real role ALUNO_GRADUADO, alunos atribuidos, alertas disparados, limite de monitor respeitado, ver dashboard do aluno, mensagens/notas funcionando.
 - ( ) Validar badges, ranking e notificacoes com dados reais do ambiente de dev.
 - ( ) Conferir RLS, visibilidade por papel e integridade das tabelas depois de cada fluxo.
 - ( ) Somente depois disso marcar a entrega como pronta.

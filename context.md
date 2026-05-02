@@ -25,6 +25,7 @@
 - `TurmaDetail` existe para membros, convites e resumo.
 - `InviteAccept` mostra rotulo padronizado da turma, nao o ID cru.
 - M7 data contract e enforcement ficaram prontos no banco e no hook: `profiles.disabled_at`, `profiles.monitor_limit`, `programs.archived_at`, `user_invites`, RPCs de convite e de administracao, resumo de monitores e bloqueio de limite por monitor em `enrollments`.
+- M8 Dashboard do Aluno Graduado foi fechado no app e no schema com listagem de alunos sob responsabilidade, alertas automaticos de baixo score, restricao de limite por graduado, visualizacao do dashboard do aluno sem ROI financeiro e integracao com notas privadas.
 - PWA/offline scaffoldado.
 - Build validado.
 - `localhost` voltou e o crash em `/plano` foi corrigido.
@@ -57,6 +58,7 @@
 - Lembrete diario ficou persistido em `profiles.habit_reminder_enabled` e `profiles.habit_reminder_time`, com scheduler local no `Shell` e plumbing de `push` no `public/sw.js`.
 - `src/hooks/useData.ts` agora centraliza `isHabitDueOnDate`, `calculateHabitStreak`, heatmap e consistencia por habito.
 - `npm run build` passou; `npm run lint` ainda acusava um erro preexistente em `src/pages/Ranking.tsx` antes do fechamento recente; localhost voltou em `http://127.0.0.1:3000`.
+- M8 fechado no app e no schema com: campo `graduated_monitor_id` em `enrollments`, tabela `low_score_alerts` para rastreamento de alertas, RPC `get_graduated_students()` para listar alunos com metricas, RPC `check_and_create_low_score_alerts()` para automacao de alertas, trigger `validate_graduated_monitor_limit()` para respeitar limite de monitor, `GraduatedDashboard.tsx` com listagem, filtros, modal detalhes, refresh automatico de alertas a cada 5 min, navegacao para dashboard do aluno, rota `/graduated-dashboard` com guard de role `ALUNO_GRADUADO`, integracao com `coach_notes` via RLS.
 
 ## Ainda Falta
 
@@ -64,7 +66,7 @@
 - M4 ROI: concluido no app, no schema e com smoke real validado no Supabase de dev.
 - M6 Dashboard do Treinador fechado no app.
 - M7 Dashboard do Super Admin fechado no app e no schema local; falta smoke real no Supabase de dev.
-- M8 Aluno Graduado ainda incompleto.
+- Testes end-to-end de M8 com usuario real role ALUNO_GRADUADO e alunos atribuidos.
 - Automatizar desbloqueio de badges por regra.
 - Expandir gestao de programas e turmas.
 - Adicionar notificacoes, LGPD/auditoria e governanca.
@@ -74,7 +76,7 @@
 - Login/sessao, recovery, verificacao de e-mail e shell de navegacao.
 - Onboarding guiado com tooltips da primeira semana.
 - Criacao/configuracao de turma e convites.
-- Dashboard, Plano 12WY, Habitos, ROI, Ranking, AdminDashboard, Turma Setup e TurmaDetail.
+- Dashboard, Plano 12WY, Habitos, ROI, Ranking, AdminDashboard, GraduatedDashboard, Turma Setup e TurmaDetail.
 - Habitos ja com fluxo simples de check-in, streak/reset e lembrete diario configuravel.
 - Integracao com Supabase de dev.
 - BadgesGrid e scaffold de PWA/offline.
@@ -89,7 +91,7 @@
 - Modulo 5 - Dashboard do Aluno: RF28-RF32 fechados.
 - Modulo 6 - Dashboard do Treinador: RF33-RF40 fechados.
 - Modulo 7 - Dashboard do Super Admin: RF41-RF46 fechados no app e no schema local; smoke real no Supabase de dev ainda pendente.
-- Modulo 8 - Aluno Graduado: RF47-RF51 pendentes.
+- Modulo 8 - Aluno Graduado: RF47-RF51 fechados no app e no schema; testes end-to-end ainda pendentes.
 - Modulo 9 - Gamificacao: RF52 parcial; RF54-RF56 pendentes; RF53 fechado.
 - Modulo 10 - Notificacoes: RF57-RF63 pendentes.
 

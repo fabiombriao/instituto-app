@@ -1765,7 +1765,7 @@ export function useEnrollments() {
     try {
       console.log('useEnrollments: Fetching for', user.id);
       let query = supabase.from('enrollments').select('*, turmas(*), profiles!enrollments_aluno_id_fkey(*)');
-      
+
       if (profile.role === 'ALUNO') {
         query = query.eq('aluno_id', user.id);
       } else if (profile.role === 'TREINADOR') {
@@ -1790,4 +1790,63 @@ export function useEnrollments() {
   }, [user, profile]);
 
   return { enrollments, loading };
+}
+
+export function useGraduatedStudents() {
+  const { user, profile } = useAuth();
+  const [students, setStudents] = useState<import('../types').GraduatedStudent[]>([]);
+  const [alerts, setAlerts] = useState<import('../types').LowScoreAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStudents = async () => {
+    if (!user || !profile || profile.role !== 'ALUNO_GRADUADO') {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const [studentsRes, alertsRes] = await Promise.all([
+        supabase.rpc('get_graduated_students', { p_graduated_id: user.id }),
+        supabase.from('low_score_alerts').select('*').eq('graduated_monitor_id', user.id).eq('alert_status', 'active'),
+      ]);
+
+      if (studentsRes.error) throw studentsRes.error;
+      if (alertsRes.error) throw alertsRes.error;
+
+      setStudents((studentsRes.data ?? []) as import('../types').GraduatedStudent[]);
+      setAlerts((alertsRes.data ?? []) as import('../types').LowScoreAlert[]);
+    } catch (err) {
+      console.error('useGraduatedStudents error:', err);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  const refreshAlerts = async () => {
+    if (!user || !profile || profile.role !== 'ALUNO_GRADUADO') return;
+    try {
+      const checkRes = await supabase.rpc('check_and_create_low_score_alerts', { p_graduated_id: user.id });
+      if (checkRes.error) throw checkRes.error;
+      await fetchStudents();
+    } catch (err) {
+      console.error('refreshAlerts error:', err);
+    }
+  };
+
+  const dismissAlert = async (alertId: string) => {
+    const { error } = await supabase
+      .from('low_score_alerts')
+      .update({ alert_status: 'dismissed', dismissed_at: new Date().toISOString() })
+      .eq('id', alertId);
+
+    if (!error) await fetchStudents();
+    return error;
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [user, profile]);
+
+  return { students, alerts, loading, fetchStudents, refreshAlerts, dismissAlert };
 }
