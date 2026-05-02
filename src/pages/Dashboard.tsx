@@ -25,6 +25,8 @@ import { cn } from '../lib/utils';
 import { getBadgeIcon } from '../lib/badgeIcons';
 import { generateStudentPDF } from '../lib/pdfExport';
 import BadgeUnlockCelebration from '../components/BadgeUnlockCelebration';
+import { useNotifications } from '../hooks/useData';
+import { showLocalNotification } from '../lib/pushSubscription';
 
 function formatMoney(value: number) {
   return value.toLocaleString('pt-BR', {
@@ -57,16 +59,18 @@ export default function Dashboard() {
   const [pdfMessage, setPdfMessage] = useState<string | null>(null);
   const [celebrationBadge, setCelebrationBadge] = useState<any>(null);
   const lastFetchedBadgeIds = useRef<Set<string>>(new Set());
+  const { logNotification } = useNotifications();
 
-  // RF56: Rastrear badges recém-desbloqueadas para celebração
+  // RF56 + M10 RF60: Rastrear badges recem-desbloqueadas para celebracao + notificacao
   useEffect(() => {
     if (badges.length === 0) return;
 
     const currentBadgeIds = new Set(badges.map((b: any) => b.id));
+    const isFirstSync = lastFetchedBadgeIds.current.size === 0;
     const newBadges = badges.filter((b: any) => !lastFetchedBadgeIds.current.has(b.id));
 
-    if (newBadges.length > 0) {
-      // Mostrar celebração para a primeira badge nova
+    if (!isFirstSync && newBadges.length > 0) {
+      // Mostrar celebracao para a primeira badge nova
       const newestBadge = newBadges.reduce((newest: any, current: any) =>
         new Date(current.unlocked_at) > new Date(newest.unlocked_at) ? current : newest
       );
@@ -75,11 +79,27 @@ export default function Dashboard() {
       if (badgeInfo) {
         setCelebrationBadge(badgeInfo);
         console.log('New badge unlocked:', badgeInfo.name);
+
+        // M10 RF60: gravar entry em notification_log e disparar push local
+        void logNotification(
+          'BADGE_UNLOCK',
+          `Nova conquista: ${badgeInfo.name}`,
+          badgeInfo.description ?? 'Voce desbloqueou uma badge.',
+          '/',
+          { badge_id: badgeInfo.id, user_badge_id: newestBadge.id },
+        );
+
+        void showLocalNotification({
+          title: `Nova badge: ${badgeInfo.name}`,
+          body: badgeInfo.description ?? 'Voce desbloqueou uma conquista!',
+          url: '/',
+          tag: `badge-${badgeInfo.id}`,
+        });
       }
     }
 
     lastFetchedBadgeIds.current = currentBadgeIds;
-  }, [badges, availableBadges]);
+  }, [badges, availableBadges, logNotification]);
 
   // Auto-check badges quando há ações (check-in, etc)
   useEffect(() => {

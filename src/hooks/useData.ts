@@ -1942,3 +1942,520 @@ export function useGraduatedStudents() {
 
   return { students, alerts, loading, fetchStudents, refreshAlerts, dismissAlert };
 }
+
+// =============================================
+// M10 - NOTIFICACOES
+// =============================================
+
+import type {
+  NotificationLog,
+  NotificationPreference,
+  NotificationType,
+  Message,
+  TrainerLowScoreAlert,
+} from '../types';
+
+const NOTIFICATION_TYPES: NotificationType[] = [
+  'HABIT_REMINDER',
+  'WEEKLY_CLOSURE',
+  'LOW_SCORE_ALERT',
+  'BADGE_UNLOCK',
+  'MESSAGE_RECEIVED',
+];
+
+export function useNotifications() {
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<NotificationLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotifications = async () => {
+    if (!user) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase
+        .from('notification_log')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('sent_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('useNotifications fetch error:', error);
+        setNotifications([]);
+        return;
+      }
+
+      setNotifications((data ?? []) as NotificationLog[]);
+    } catch (err) {
+      console.error('useNotifications error:', err);
+      setNotifications([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [user]);
+
+  // Refresh a cada 60s
+  useEffect(() => {
+    if (!user) return;
+    const interval = window.setInterval(() => {
+      fetchNotifications();
+    }, 60000);
+    return () => window.clearInterval(interval);
+  }, [user]);
+
+  const markAsRead = async (notificationId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('notification_log')
+        .update({ read_at: new Date().toISOString() })
+        .eq('id', notificationId)
+        .eq('user_id', user.id);
+      if (error) {
+        console.error('markAsRead error:', error);
+        return error;
+      }
+      await fetchNotifications();
+    } catch (err) {
+      console.error('markAsRead error:', err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('notification_log')
+        .update({ read_at: new Date().toISOString() })
+        .eq('user_id', user.id)
+        .is('read_at', null);
+      if (error) {
+        console.error('markAllAsRead error:', error);
+        return error;
+      }
+      await fetchNotifications();
+    } catch (err) {
+      console.error('markAllAsRead error:', err);
+    }
+  };
+
+  const logNotification = async (
+    type: NotificationType,
+    title: string,
+    body?: string,
+    url?: string,
+    payload?: Record<string, unknown>,
+  ) => {
+    if (!user) return null;
+    try {
+      const { data, error } = await supabase
+        .from('notification_log')
+        .insert({
+          user_id: user.id,
+          type,
+          title,
+          body: body ?? null,
+          url: url ?? null,
+          payload: (payload ?? {}) as any,
+        })
+        .select('*')
+        .single();
+      if (error) {
+        console.error('logNotification error:', error);
+        return null;
+      }
+      await fetchNotifications();
+      return data as NotificationLog;
+    } catch (err) {
+      console.error('logNotification error:', err);
+      return null;
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+
+  return {
+    notifications,
+    unreadCount,
+    loading,
+    fetchNotifications,
+    markAsRead,
+    markAllAsRead,
+    logNotification,
+  };
+}
+
+export function useNotificationPreferences() {
+  const { user } = useAuth();
+  const [preferences, setPreferences] = useState<NotificationPreference[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPreferences = async () => {
+    if (!user) {
+      setPreferences([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) {
+        console.error('useNotificationPreferences fetch error:', error);
+        setPreferences([]);
+        return;
+      }
+      setPreferences((data ?? []) as NotificationPreference[]);
+    } catch (err) {
+      console.error('useNotificationPreferences error:', err);
+      setPreferences([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchPreferences();
+  }, [user]);
+
+  const getPreference = (type: NotificationType): NotificationPreference | null => {
+    return preferences.find((p) => p.notification_type === type) ?? null;
+  };
+
+  // Default values when no preference saved yet
+  const isAllowed = (type: NotificationType, channel: 'push' | 'email' | 'in_app'): boolean => {
+    const pref = getPreference(type);
+    if (!pref) {
+      // Default: in_app + push true, email false
+      if (channel === 'email') return false;
+      return true;
+    }
+    if (channel === 'push') return Boolean(pref.push_enabled);
+    if (channel === 'email') return Boolean(pref.email_enabled);
+    return Boolean(pref.in_app_enabled);
+  };
+
+  const upsertPreference = async (
+    type: NotificationType,
+    push: boolean,
+    email: boolean,
+    inApp: boolean,
+  ) => {
+    if (!user) return null;
+    try {
+      const { data, error } = await supabase
+        .from('notification_preferences')
+        .upsert(
+          {
+            user_id: user.id,
+            notification_type: type,
+            push_enabled: push,
+            email_enabled: email,
+            in_app_enabled: inApp,
+          },
+          { onConflict: 'user_id,notification_type' },
+        )
+        .select('*')
+        .single();
+      if (error) {
+        console.error('upsertPreference error:', error);
+        return error;
+      }
+      await fetchPreferences();
+      return data as NotificationPreference;
+    } catch (err) {
+      console.error('upsertPreference error:', err);
+      return err;
+    }
+  };
+
+  return {
+    preferences,
+    loading,
+    types: NOTIFICATION_TYPES,
+    getPreference,
+    isAllowed,
+    upsertPreference,
+    refetch: fetchPreferences,
+  };
+}
+
+export function useMessages() {
+  const { user, profile } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchMessages = async () => {
+    if (!user) {
+      setMessages([]);
+      setUnreadCount(0);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order('sent_at', { ascending: false })
+        .limit(200);
+      if (error) {
+        console.error('useMessages fetch error:', error);
+        setMessages([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      const list = (data ?? []) as Message[];
+
+      // Hydrate sender / recipient names
+      const partnerIds = Array.from(
+        new Set(
+          list.flatMap((m) => [m.sender_id, m.recipient_id]).filter((id) => id && id !== user.id),
+        ),
+      );
+
+      let nameMap = new Map<string, string>();
+      if (partnerIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', partnerIds);
+        nameMap = new Map(
+          ((profilesData ?? []) as { id: string; full_name: string }[]).map((p) => [p.id, p.full_name]),
+        );
+      }
+
+      const hydrated = list.map((m) => ({
+        ...m,
+        sender_name:
+          m.sender_id === user.id
+            ? profile?.full_name ?? 'Voce'
+            : nameMap.get(m.sender_id) ?? null,
+        recipient_name:
+          m.recipient_id === user.id
+            ? profile?.full_name ?? 'Voce'
+            : nameMap.get(m.recipient_id) ?? null,
+      }));
+
+      setMessages(hydrated);
+      setUnreadCount(hydrated.filter((m) => m.recipient_id === user.id && !m.read_at).length);
+    } catch (err) {
+      console.error('useMessages error:', err);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+  }, [user, profile]);
+
+  // Polling para acumular novas mensagens
+  useEffect(() => {
+    if (!user) return;
+    const interval = window.setInterval(() => {
+      fetchMessages();
+    }, 60000);
+    return () => window.clearInterval(interval);
+  }, [user]);
+
+  const sendMessage = async (recipientId: string, content: string, parentId?: string) => {
+    if (!user) return { error: new Error('Sem sessao') };
+    try {
+      const { data, error } = await supabase.rpc('send_message', {
+        p_recipient_id: recipientId,
+        p_content: content,
+        p_parent_id: parentId ?? null,
+      });
+      if (error) {
+        console.error('sendMessage error:', error);
+        return { error };
+      }
+      await fetchMessages();
+      return { data };
+    } catch (err) {
+      console.error('sendMessage error:', err);
+      return { error: err };
+    }
+  };
+
+  const markRead = async (messageId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase.rpc('mark_message_read', { p_message_id: messageId });
+      if (error) {
+        console.error('markRead error:', error);
+        return error;
+      }
+      await fetchMessages();
+    } catch (err) {
+      console.error('markRead error:', err);
+    }
+  };
+
+  return {
+    messages,
+    unreadCount,
+    loading,
+    fetchMessages,
+    sendMessage,
+    markRead,
+  };
+}
+
+export function useTrainerLowScoreAlerts() {
+  const { user, profile } = useAuth();
+  const [alerts, setAlerts] = useState<TrainerLowScoreAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAlerts = async () => {
+    if (!user || !profile) {
+      setAlerts([]);
+      setLoading(false);
+      return;
+    }
+    if (profile.role !== 'TREINADOR' && profile.role !== 'SUPER_ADMIN') {
+      setAlerts([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+    try {
+      const { data, error } = await supabase.rpc('get_trainer_low_score_alerts', {
+        p_treinador_id: user.id,
+      });
+      if (error) {
+        console.error('useTrainerLowScoreAlerts fetch error:', error);
+        setAlerts([]);
+        return;
+      }
+      setAlerts((data ?? []) as TrainerLowScoreAlert[]);
+    } catch (err) {
+      console.error('useTrainerLowScoreAlerts error:', err);
+      setAlerts([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [user, profile]);
+
+  const resolveAlert = async (alertId: string, action: 'resolved' | 'dismissed') => {
+    try {
+      const { error } = await supabase.rpc('trainer_resolve_alert', {
+        p_alert_id: alertId,
+        p_action: action,
+      });
+      if (error) {
+        console.error('resolveAlert error:', error);
+        return error;
+      }
+      await fetchAlerts();
+      return null;
+    } catch (err) {
+      console.error('resolveAlert error:', err);
+      return err;
+    }
+  };
+
+  return { alerts, loading, refetch: fetchAlerts, resolveAlert };
+}
+
+// Lista os possíveis destinatarios para um aluno-graduado iniciar conversa
+// (alunos que ele monitora) ou para um aluno (graduado que o monitora).
+export function useMessageRecipients() {
+  const { user, profile } = useAuth();
+  const [recipients, setRecipients] = useState<{ id: string; full_name: string; role: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRecipients = async () => {
+    if (!user || !profile) {
+      setRecipients([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const finishLoading = createLoadingFinisher(setLoading);
+
+    try {
+      if (profile.role === 'ALUNO_GRADUADO') {
+        const { data, error } = await supabase
+          .from('enrollments')
+          .select('aluno_id, profiles!enrollments_aluno_id_fkey(id, full_name, role)')
+          .eq('graduated_monitor_id', user.id)
+          .eq('status', 'active');
+        if (error) throw error;
+        const mapped = ((data ?? []) as any[])
+          .map((row) => row.profiles)
+          .filter((p) => p)
+          .map((p: any) => ({ id: p.id, full_name: p.full_name, role: p.role }));
+        setRecipients(mapped);
+      } else if (profile.role === 'ALUNO') {
+        const { data: enrollData, error: enrollErr } = await supabase
+          .from('enrollments')
+          .select('graduated_monitor_id')
+          .eq('aluno_id', user.id)
+          .eq('status', 'active')
+          .not('graduated_monitor_id', 'is', null);
+        if (enrollErr) throw enrollErr;
+        const ids = Array.from(
+          new Set(
+            ((enrollData ?? []) as { graduated_monitor_id: string | null }[])
+              .map((row) => row.graduated_monitor_id)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
+        if (ids.length === 0) {
+          setRecipients([]);
+        } else {
+          const { data: profData, error: profErr } = await supabase
+            .from('profiles')
+            .select('id, full_name, role')
+            .in('id', ids);
+          if (profErr) throw profErr;
+          setRecipients(
+            ((profData ?? []) as any[]).map((p) => ({
+              id: p.id,
+              full_name: p.full_name,
+              role: p.role,
+            })),
+          );
+        }
+      } else {
+        setRecipients([]);
+      }
+    } catch (err) {
+      console.error('useMessageRecipients error:', err);
+      setRecipients([]);
+    } finally {
+      finishLoading();
+    }
+  };
+
+  useEffect(() => {
+    fetchRecipients();
+  }, [user, profile]);
+
+  return { recipients, loading, refetch: fetchRecipients };
+}

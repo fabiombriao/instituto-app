@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
+  AlertCircle,
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
@@ -9,6 +10,7 @@ import {
   Eye,
   Loader2,
   Search,
+  ShieldCheck,
   TrendingDown,
   TrendingUp,
   X,
@@ -18,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
+import { useTrainerLowScoreAlerts } from '../hooks/useData';
 import type {
   Profile,
   WeeklyScore,
@@ -77,6 +80,13 @@ export default function TrainerDashboard() {
   const [modalLoading, setModalLoading] = useState(false);
 
   const canView = profile?.role === 'SUPER_ADMIN' || profile?.role === 'TREINADOR';
+  const {
+    alerts: lowScoreAlerts,
+    loading: alertsLoading,
+    refetch: refetchAlerts,
+    resolveAlert: resolveTrainerAlert,
+  } = useTrainerLowScoreAlerts();
+  const [resolvingAlertId, setResolvingAlertId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canView) {
@@ -85,6 +95,24 @@ export default function TrainerDashboard() {
     }
     fetchStudentsData();
   }, [profile, navigate]);
+
+  const handleResolveAlert = async (alertId: string | null, action: 'resolved' | 'dismissed') => {
+    if (!alertId) return;
+    setResolvingAlertId(alertId);
+    try {
+      const error = await resolveTrainerAlert(alertId, action);
+      if (error) {
+        console.error('Error resolving alert', error);
+      }
+      await refetchAlerts();
+    } finally {
+      setResolvingAlertId(null);
+    }
+  };
+
+  const activeAlerts = lowScoreAlerts.filter(
+    (alert) => alert.alert_status === 'active' || alert.latest_weekly_score < 60,
+  );
 
   const fetchStudentsData = async () => {
     setLoading(true);
@@ -323,6 +351,100 @@ export default function TrainerDashboard() {
           </div>
         </div>
       </div>
+
+      {/* M10 RF59: Banner de alertas de score baixo */}
+      <AnimatePresence>
+        {activeAlerts.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="rounded-[32px] border border-rose-500/30 bg-rose-950/20 p-6"
+          >
+            <header className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-300">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-300">
+                    RF59 - Alertas de score baixo
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black italic uppercase tracking-tighter text-white">
+                    {activeAlerts.length} aluno{activeAlerts.length === 1 ? '' : 's'} pedindo atencao
+                  </h2>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void refetchAlerts()}
+                className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-rose-300 hover:bg-rose-500/20"
+              >
+                {alertsLoading ? 'Atualizando...' : 'Atualizar'}
+              </button>
+            </header>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {activeAlerts.map((alert) => (
+                <div
+                  key={`${alert.aluno_id}-${alert.alert_id ?? 'noid'}`}
+                  className="flex flex-col gap-3 rounded-[24px] border border-rose-500/20 bg-black/30 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-tight text-white">
+                        {alert.aluno_name || 'Aluno'}
+                      </p>
+                      <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+                        {alert.turma_name ?? 'Sem turma'}
+                        {alert.graduated_monitor_name
+                          ? ` - Monitor: ${alert.graduated_monitor_name}`
+                          : ''}
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-rose-300">
+                      {alert.weeks_below_60 || 1}x &lt;60%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-500">
+                    <span>Score: {Math.round(alert.latest_weekly_score)}%</span>
+                    {alert.last_low_week_date ? (
+                      <span>Ultima: {alert.last_low_week_date}</span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={!alert.alert_id || resolvingAlertId === alert.alert_id}
+                      onClick={() => void handleResolveAlert(alert.alert_id, 'resolved')}
+                      className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300 disabled:opacity-40"
+                    >
+                      <ShieldCheck className="h-3 w-3" />
+                      {resolvingAlertId === alert.alert_id ? 'Salvando...' : 'Resolver'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!alert.alert_id || resolvingAlertId === alert.alert_id}
+                      onClick={() => void handleResolveAlert(alert.alert_id, 'dismissed')}
+                      className="inline-flex items-center gap-1 rounded-full border border-neutral-500/30 bg-black/40 px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-neutral-300 disabled:opacity-40"
+                    >
+                      <X className="h-3 w-3" />
+                      Dispensar
+                    </button>
+                    {!alert.alert_id ? (
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-neutral-600">
+                        Sem alerta persistido
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       <div className="flex flex-wrap gap-3">
         {Object.entries(STATUS_FILTERS).map(([key, { label, className }]) => (

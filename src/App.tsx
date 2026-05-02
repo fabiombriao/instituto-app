@@ -21,6 +21,8 @@ const Plan12WY = lazy(() => import('./pages/Plan12WY'));
 const Habits = lazy(() => import('./pages/Habits'));
 const ROI = lazy(() => import('./pages/ROI'));
 const Ranking = lazy(() => import('./pages/Ranking'));
+const NotificationSettings = lazy(() => import('./pages/NotificationSettings'));
+const Messages = lazy(() => import('./pages/Messages'));
 
 function AppRoutes() {
   const { user, profile, loading, signOut } = useAuth();
@@ -141,6 +143,15 @@ function AppRoutes() {
           <Route path="/turma" element={<Ranking />} />
           <Route path="/turma/:turmaId" element={<TurmaDetail />} />
           <Route path="/turma/setup" element={<TurmaSetup />} />
+          <Route path="/notifications" element={<NotificationSettings />} />
+          <Route
+            path="/messages"
+            element={
+              profile?.role === 'ALUNO_GRADUADO' || profile?.role === 'ALUNO'
+                ? <Messages />
+                : <Navigate to="/" replace />
+            }
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

@@ -420,6 +420,96 @@ export interface LowScoreAlert {
   updated_at: string;
 }
 
+// =============================================
+// M10 - Notificacoes
+// =============================================
+
+export type NotificationType =
+  | 'HABIT_REMINDER'
+  | 'WEEKLY_CLOSURE'
+  | 'LOW_SCORE_ALERT'
+  | 'BADGE_UNLOCK'
+  | 'MESSAGE_RECEIVED';
+
+export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
+  HABIT_REMINDER: 'Lembrete de hábitos',
+  WEEKLY_CLOSURE: 'Fechamento semanal',
+  LOW_SCORE_ALERT: 'Alerta de score baixo',
+  BADGE_UNLOCK: 'Conquista de badge',
+  MESSAGE_RECEIVED: 'Mensagens recebidas',
+};
+
+export interface NotificationLog {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  url: string | null;
+  payload: Record<string, unknown> | null;
+  read_at: string | null;
+  sent_at: string;
+  created_at: string;
+}
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  notification_type: NotificationType;
+  push_enabled: boolean;
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Message {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  parent_message_id: string | null;
+  read_at: string | null;
+  sent_at: string;
+  created_at: string;
+  sender_name?: string | null;
+  recipient_name?: string | null;
+}
+
+export interface MessageThread {
+  partner_id: string;
+  partner_name: string;
+  partner_role: string;
+  last_message: Message | null;
+  unread_count: number;
+  total_count: number;
+}
+
+export interface PushSubscriptionRow {
+  id: string;
+  user_id: string;
+  endpoint: string;
+  keys: Record<string, string>;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface TrainerLowScoreAlert {
+  alert_id: string | null;
+  aluno_id: string;
+  aluno_name: string;
+  aluno_email: string;
+  turma_id: string | null;
+  turma_name: string | null;
+  latest_weekly_score: number;
+  weeks_below_60: number;
+  alert_status: 'active' | 'resolved' | 'dismissed' | string;
+  graduated_monitor_id: string | null;
+  graduated_monitor_name: string | null;
+  first_low_week_date: string | null;
+  last_low_week_date: string | null;
+}
+
 export interface Database {
   public: {
     Tables: {

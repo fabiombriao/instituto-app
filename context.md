@@ -26,6 +26,7 @@
 - `InviteAccept` mostra rotulo padronizado da turma, nao o ID cru.
 - M7 data contract e enforcement ficaram prontos no banco e no hook: `profiles.disabled_at`, `profiles.monitor_limit`, `programs.archived_at`, `user_invites`, RPCs de convite e de administracao, resumo de monitores e bloqueio de limite por monitor em `enrollments`.
 - M8 Dashboard do Aluno Graduado foi fechado no app e no schema com listagem de alunos sob responsabilidade, alertas automaticos de baixo score, restricao de limite por graduado, visualizacao do dashboard do aluno sem ROI financeiro e integracao com notas privadas.
+- M10 Notificacoes foi fechado no app com Bell + NotificationCenter no Shell, lembrete diario de habitos (UI ja existia), lembrete de fechamento semanal automatico, banner de alertas de score baixo no TrainerDashboard, push local de badge, canal bidirecional graduado<->aluno em /messages, /notifications com preferencias por tipo e canal, e migration `migrations/m10_notifications.sql` pronta para aplicar no Supabase. Push real (VAPID) fica reservado por falta de backend; notificacoes sao locais via `registration.showNotification`.
 - PWA/offline scaffoldado.
 - Build validado.
 - `localhost` voltou e o crash em `/plano` foi corrigido.
@@ -60,6 +61,7 @@
 - `npm run build` passou; `npm run lint` ainda acusava um erro preexistente em `src/pages/Ranking.tsx` antes do fechamento recente; localhost voltou em `http://127.0.0.1:3000`.
 - M8 fechado no app e no schema com: campo `graduated_monitor_id` em `enrollments`, tabela `low_score_alerts` para rastreamento de alertas, RPC `get_graduated_students()` para listar alunos com metricas, RPC `check_and_create_low_score_alerts()` para automacao de alertas, trigger `validate_graduated_monitor_limit()` para respeitar limite de monitor, `GraduatedDashboard.tsx` com listagem, filtros, modal detalhes, refresh automatico de alertas a cada 5 min, navegacao para dashboard do aluno, rota `/graduated-dashboard` com guard de role `ALUNO_GRADUADO`, integracao com `coach_notes` via RLS.
 - M9 fechado no app e schema com: RF52 consolidacao de streaks (funcoes `calculateHabitStreak` e `getCurrentHabitStreak`), RF53 ranking real baseado em score semanal (85% habitos 7d + 24% badges + 15% ROI + 16% streak), RF54 desbloqueio automatico de badges via RPC `check_and_unlock_badges()` com 7 regras e triggers, RF55 feed de conquistas da turma via RPC `get_team_achievements()` sem ROI, RF56 celebracao modal com animacoes em `BadgeUnlockCelebration.tsx`, hooks expandidos `useGamification()` com `checkAndUnlockBadges()` e novo `useTeamAchievements()`, integracao em `Dashboard.tsx` com rastreio de novas badges e celebracao auto-close.
+- M10 fechado no app com: RF57 lembrete diario (UI ja existia em `Habits.tsx`, mantida), RF58 lembrete de fechamento semanal via RPC `should_send_weekly_closure_reminder` chamada pelo scheduler do `Shell.tsx` com cache em `localStorage` e log persistido em `notification_log`, RF59 banner de alertas de baixo score em `TrainerDashboard.tsx` consumindo RPC `get_trainer_low_score_alerts` com botoes Resolver/Dispensar via RPC `trainer_resolve_alert`, RF60 notificacao local + entry em `notification_log` para badges desbloqueadas em `Dashboard.tsx`, RF61/RF62 canal bidirecional graduado<->aluno em `src/pages/Messages.tsx` com RLS, RPCs `send_message`/`mark_message_read` e validacao de papel, RF63 `src/pages/NotificationSettings.tsx` com toggles por tipo (HABIT_REMINDER, WEEKLY_CLOSURE, LOW_SCORE_ALERT, BADGE_UNLOCK, MESSAGE_RECEIVED) e por canal (push/email/in_app) usando RPC `upsert_notification_preference`. Bell + NotificationCenter no `Shell.tsx` mostra contagem de nao lidas, marca lidas e linka para preferencias e mensagens. Migration aplicavel: `migrations/m10_notifications.sql` (notification_log, notification_preferences, messages, push_subscriptions, RLS e RPCs).
 
 ## Ainda Falta
 
@@ -69,8 +71,9 @@
 - M7 Dashboard do Super Admin fechado no app e no schema local; falta smoke real no Supabase de dev.
 - Testes end-to-end de M8 com usuario real role ALUNO_GRADUADO e alunos atribuidos.
 - M9 Gamificacao: Implementado RF52-RF56, pendente aplicar migration no Supabase de dev e smoke real.
+- M10 Notificacoes: RF57-RF63 fechados no app, falta aplicar `migrations/m10_notifications.sql` no Supabase e smoke real (envio entre graduado e aluno, banner do treinador, fechamento semanal disparando).
 - Expandir gestao de programas e turmas.
-- Adicionar notificacoes, LGPD/auditoria e governanca.
+- Adicionar LGPD/auditoria, governanca e push real via VAPID com backend.
 
 ## Bem Encaminhado
 
@@ -94,7 +97,7 @@
 - Modulo 7 - Dashboard do Super Admin: RF41-RF46 fechados no app e no schema local; smoke real no Supabase de dev ainda pendente.
 - Modulo 8 - Aluno Graduado: RF47-RF51 fechados no app e no schema; testes end-to-end ainda pendentes.
 - Modulo 9 - Gamificacao: RF52-RF56 fechados no app; migration m9_gamification.sql pronta para aplicar no Supabase; smoke real pendente.
-- Modulo 10 - Notificacoes: RF57-RF63 pendentes.
+- Modulo 10 - Notificacoes: RF57-RF63 fechados no app; migration `migrations/m10_notifications.sql` pronta para aplicar no Supabase; smoke real pendente.
 
 ## Gaps Transversais
 

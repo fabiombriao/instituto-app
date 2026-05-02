@@ -161,13 +161,13 @@ Arquivos provaveis: `src/hooks/useData.ts`, `src/pages/Ranking.tsx`, `src/compon
 
 ### M10 - Notificacoes
 
-- ( ) RF57: implementar lembrete diario de habitos com horario configuravel.
-- ( ) RF58: implementar lembrete de fechamento semanal da turma.
-- ( ) RF59: implementar alerta de score baixo para treinador e graduado.
-- ( ) RF60: implementar celebracao de badge via push e banner interno.
-- ( ) RF61: notificar quando o graduado enviar mensagem.
-- ( ) RF62: notificar quando o aluno responder ao graduado.
-- ( ) RF63: criar preferencias por tipo de notificacao e por canal push/e-mail.
+- (x) RF57: implementar lembrete diario de habitos com horario configuravel.
+- (x) RF58: implementar lembrete de fechamento semanal da turma.
+- (x) RF59: implementar alerta de score baixo para treinador e graduado.
+- (x) RF60: implementar celebracao de badge via push e banner interno.
+- (x) RF61: notificar quando o graduado enviar mensagem.
+- (x) RF62: notificar quando o aluno responder ao graduado.
+- (x) RF63: criar preferencias por tipo de notificacao e por canal push/e-mail.
 
 Arquivos provaveis: `public/sw.js`, `public/manifest.webmanifest`, `public/offline.html`, `src/pages/Dashboard.tsx`, `src/pages/AdminDashboard.tsx`, `src/hooks/useData.ts`.
 

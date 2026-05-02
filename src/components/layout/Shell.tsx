@@ -12,10 +12,14 @@ import {
   Settings,
   LogOut,
   Menu,
-  X
+  X,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import NotificationCenter from '../NotificationCenter';
+import { supabase } from '../../lib/supabase';
+import { showLocalNotification } from '../../lib/pushSubscription';
 
 function getReminderStorageKey(profileId: string) {
   return `habit-reminder:last-fired:${profileId}`;
@@ -45,6 +49,8 @@ const NAV_ITEMS = [
   { icon: History, label: '03. HÁBITOS', path: '/habitos' },
   { icon: TrendingUp, label: '04. ROI', path: '/roi' },
   { icon: Users, label: '05. TURMA', path: '/turma' },
+  { icon: MessageSquare, label: '06. MENSAGENS', path: '/messages' },
+  { icon: Bell, label: '07. NOTIFICAÇÕES', path: '/notifications' },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -114,6 +120,85 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     };
   }, [profile?.habit_reminder_enabled, profile?.habit_reminder_time, profile?.id]);
 
+  // M10 RF58: Lembrete de fechamento semanal da turma
+  React.useEffect(() => {
+    if (!profile?.id || profile?.role !== 'ALUNO') return;
+    if (typeof window === 'undefined') return;
+
+    let cancelled = false;
+    const STORAGE_PREFIX = `weekly-closure:last-fired:${profile.id}`;
+
+    const fireWeeklyClosure = async () => {
+      if (cancelled) return;
+
+      try {
+        const { data, error } = await supabase.rpc('should_send_weekly_closure_reminder', {
+          p_user_id: profile.id,
+        });
+        if (error) {
+          console.warn('weekly closure rpc error', error);
+          return;
+        }
+
+        const items = (data ?? []) as Array<{
+          turma_id: string;
+          turma_name: string;
+          fechamento_hora: string | null;
+        }>;
+
+        for (const item of items) {
+          const todayKey = new Date().toISOString().split('T')[0];
+          const storageKey = `${STORAGE_PREFIX}:${item.turma_id}`;
+          if (window.localStorage.getItem(storageKey) === todayKey) continue;
+
+          const horaLabel = item.fechamento_hora
+            ? item.fechamento_hora.toString().slice(0, 5)
+            : 'em breve';
+          const title = 'Fechamento da semana hoje';
+          const body = `Faca seu check-in da turma ${item.turma_name} antes das ${horaLabel}.`;
+
+          if ('Notification' in window && Notification.permission === 'granted') {
+            await showLocalNotification({
+              title,
+              body,
+              url: '/plano',
+              tag: `weekly-closure-${item.turma_id}`,
+            });
+          }
+
+          // Persistir no notification_log para aparecer no Bell
+          try {
+            await supabase.from('notification_log').insert({
+              user_id: profile.id,
+              type: 'WEEKLY_CLOSURE',
+              title,
+              body,
+              url: '/plano',
+              payload: { turma_id: item.turma_id, turma_name: item.turma_name },
+            });
+          } catch (insErr) {
+            console.warn('notification_log insert error', insErr);
+          }
+
+          window.localStorage.setItem(storageKey, todayKey);
+        }
+      } catch (err) {
+        console.warn('fireWeeklyClosure error', err);
+      }
+    };
+
+    void fireWeeklyClosure();
+    // Recheck a cada 1h
+    const interval = window.setInterval(() => {
+      void fireWeeklyClosure();
+    }, 60 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [profile?.id, profile?.role]);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
@@ -133,12 +218,15 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <span className="font-sans font-black tracking-tighter uppercase text-xs">Instituto CE</span>
         </div>
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 hover:bg-[#262626] rounded-lg transition-colors"
-        >
-          {isMobileMenuOpen ? <X /> : <Menu />}
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificationCenter />
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 hover:bg-[#262626] rounded-lg transition-colors"
+          >
+            {isMobileMenuOpen ? <X /> : <Menu />}
+          </button>
+        </div>
       </header>
 
       {/* Sidebar (Desktop) */}
@@ -297,6 +385,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 min-w-0 p-8 md:p-12 overflow-auto bg-[#0a0a0a]">
+        <div className="hidden md:flex items-center justify-end gap-3 mb-6 max-w-6xl mx-auto">
+          <NotificationCenter />
+        </div>
         <div className="max-w-6xl mx-auto">
           {children}
         </div>
