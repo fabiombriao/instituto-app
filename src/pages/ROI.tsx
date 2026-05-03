@@ -181,7 +181,9 @@ export default function ROI() {
       setAmount('');
       setDescription('');
       setIsAddingResult(false);
-      await fetchROI();
+      void fetchROI().catch((error) => {
+        setPageError(parseError(error, 'Não foi possível atualizar os dados de ROI após salvar.'));
+      });
     } catch (error) {
       setPageError(parseError(error, 'Não foi possível registrar o lançamento.'));
     } finally {
