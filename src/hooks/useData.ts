@@ -661,9 +661,7 @@ export function useROI() {
       const baselineRows = (baseData.data ?? []) as ROIBaseline[];
       const currentCycle = (cycleData.data ?? null) as Cycle | null;
       const selectedBaseline =
-        baselineRows.find((row) => row.cycle_id && row.cycle_id === currentCycle?.id) ??
-        baselineRows[0] ??
-        null;
+        baselineRows.find((row) => row.cycle_id && row.cycle_id === currentCycle?.id) ?? null;
 
       setBaselines(baselineRows);
       setActiveCycle(currentCycle);
@@ -696,7 +694,7 @@ export function useROI() {
       return new Error('Seu papel não tem acesso a lançamentos financeiros de ROI.');
     }
 
-    const selectedBaseline = baseline ?? baselines[0] ?? null;
+    const selectedBaseline = baseline ?? null;
     const cycleId = selectedBaseline?.cycle_id ?? activeCycle?.id ?? null;
     if (!selectedBaseline?.id || !cycleId) {
       return new Error('Configure a baseline e o ciclo antes de lançar um resultado.');

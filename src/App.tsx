@@ -146,14 +146,7 @@ function AppRoutes() {
           <Route path="/turma/:turmaId" element={<TurmaDetail />} />
           <Route path="/turma/setup" element={<TurmaSetup />} />
           <Route path="/notifications" element={<NotificationSettings />} />
-          <Route
-            path="/messages"
-            element={
-              profile?.role === 'ALUNO_GRADUADO' || profile?.role === 'ALUNO'
-                ? <Messages />
-                : <Navigate to="/" replace />
-            }
-          />
+          <Route path="/messages" element={<Messages />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route
             path="/audit-log"
