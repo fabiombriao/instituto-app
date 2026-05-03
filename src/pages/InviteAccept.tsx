@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, Link2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Program, TurmaInvite } from '../types';
 import { formatTurmaInviteLabel } from '../lib/turmaLabel';
+import BrandLogo from '../components/BrandLogo';
 
 export default function InviteAccept() {
   const navigate = useNavigate();
@@ -132,9 +133,7 @@ export default function InviteAccept() {
         <div className="absolute top-0 right-0 w-32 h-32 brand-gradient blur-[100px] opacity-20" />
 
         <div className="flex flex-col items-center mb-10 relative z-10 text-center">
-          <div className="w-16 h-16 brand-gradient rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
-            <Link2 className="text-black w-8 h-8" />
-          </div>
+          <BrandLogo className="mb-6 h-16 w-auto max-w-[280px]" />
           <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">
             Convite de turma
           </h1>

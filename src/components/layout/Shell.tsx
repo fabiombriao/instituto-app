@@ -24,6 +24,7 @@ import OfflineIndicator from '../OfflineIndicator';
 import { supabase } from '../../lib/supabase';
 import { showLocalNotification } from '../../lib/pushSubscription';
 import { startOfflineSync } from '../../lib/offlineQueue';
+import BrandLogo from '../BrandLogo';
 
 function getReminderStorageKey(profileId: string) {
   return `habit-reminder:last-fired:${profileId}`;
@@ -224,10 +225,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {/* Mobile Header */}
       <header className="md:hidden h-16 bg-[#050505] border-b border-[#262626] px-4 flex items-center justify-between sticky top-0 z-50">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 brand-gradient rounded-lg flex items-center justify-center shadow-lg shadow-brand-green/20">
-            <div className="w-4 h-4 bg-black rounded-sm" />
-          </div>
-          <span className="font-sans font-black tracking-tighter uppercase text-xs">Instituto CE</span>
+          <BrandLogo className="h-8 w-auto" />
         </div>
         <div className="flex items-center gap-2">
           <OfflineIndicator />
@@ -244,14 +242,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {/* Sidebar (Desktop) */}
       <aside className="hidden md:flex w-64 bg-[#050505] sidebar-border flex-col sticky top-0 h-screen">
         <div className="p-8">
-          <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 brand-gradient rounded-xl flex items-center justify-center shadow-lg shadow-brand-green/20">
-              <div className="w-5 h-5 bg-black rounded-md" />
-            </div>
-            <div>
-              <h2 className="font-black text-lg tracking-tighter uppercase leading-none">Instituto</h2>
-              <p className="text-[10px] font-bold tracking-[0.2em] text-neutral-500 uppercase">Caminhos do Êxito</p>
-            </div>
+          <div className="mb-12">
+            <BrandLogo className="h-12 w-auto max-w-full" />
           </div>
 
           <nav className="flex flex-col gap-4">
@@ -341,11 +333,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             className="fixed inset-0 z-40 md:hidden flex"
           >
             <div className="w-4/5 bg-[#050505] h-full shadow-2xl flex flex-col p-8">
-              <div className="flex items-center gap-3 mb-12">
-                <div className="w-10 h-10 brand-gradient rounded-xl flex items-center justify-center">
-                  <div className="w-5 h-5 bg-black rounded-md" />
-                </div>
-                <h2 className="font-black text-lg tracking-tighter uppercase">Instituto CE</h2>
+              <div className="mb-12">
+                <BrandLogo className="h-10 w-auto max-w-full" />
               </div>
               <nav className="flex flex-col gap-6">
                 {ADMIN_NAV_ITEMS.filter((item) => {

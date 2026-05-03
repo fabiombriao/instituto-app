@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, KeyRound, Loader2, Mail } from 'lucide-react';
+import { ArrowLeft, Loader2, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import BrandLogo from '../components/BrandLogo';
 
 export default function ForgotPassword() {
   const [searchParams] = useSearchParams();
@@ -49,9 +50,7 @@ export default function ForgotPassword() {
         <div className="absolute top-0 right-0 w-32 h-32 brand-gradient blur-[100px] opacity-20" />
 
         <div className="flex flex-col items-center mb-10 relative z-10 text-center">
-          <div className="w-16 h-16 brand-gradient rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
-            <KeyRound className="text-black w-8 h-8" />
-          </div>
+          <BrandLogo className="mb-6 h-16 w-auto max-w-[280px]" />
           <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none">
             Recuperar senha
           </h1>
