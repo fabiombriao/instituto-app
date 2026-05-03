@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { Loader2, MailQuestion, KeyRound } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import BrandLogo from '../components/BrandLogo';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -36,9 +37,7 @@ export default function Login() {
         <div className="absolute top-0 right-0 w-32 h-32 brand-gradient blur-[100px] opacity-20" />
         
         <div className="flex flex-col items-center mb-10 relative z-10">
-          <div className="w-16 h-16 brand-gradient rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-emerald-500/20">
-            <div className="w-8 h-8 bg-black rounded-lg" />
-          </div>
+          <BrandLogo className="mb-6 h-16 w-auto max-w-[280px]" />
           <h1 className="text-4xl font-black italic tracking-tighter uppercase text-center leading-none">Mundo<br/>Melhor</h1>
           <p className="text-neutral-500 text-[10px] font-bold tracking-[0.3em] uppercase mt-4">
             Instituto Caminhos do Êxito
